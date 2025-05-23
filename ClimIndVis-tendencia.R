@@ -4,6 +4,8 @@
 rm(list = ls()); gc();
 
 library(ClimIndVis)
+library(dplyr)
+library(tidyr)
 
 # Cargar datos 
 df1 <- read.csv('data/Registros_87585_Buenos_Aires.csv', sep = "\t")
@@ -84,7 +86,7 @@ climindvis_st <- make_object(
 
 
 #grafico del indice
-autoplot_ts_stations(climindvis_st, index ="tn10p", index_args = list(aggt = "annual"))
+autoplot_ts_stations(climindvis_st, index ="tn10p", trendplots = TRUE, index_args = list(aggt = "annual"))
 
 #grafico de la anomalia del indice
 autoplot_anomaly_ts(climindvis_st, index ="tn10p", index_args = list(aggt = "annual"), 
@@ -92,10 +94,10 @@ autoplot_anomaly_ts(climindvis_st, index ="tn10p", index_args = list(aggt = "ann
 
 
 
-autoplot_trend_map(dat_p = climindvis_st, index = "tn10p", iformat = "perc", index_args = list(aggt = "annual"))
+autoplot_trend_map(dat_p = climindvis_st, index = "tn10p", index_args = list(aggt = "annual"))
 
 
-index_tn10p <- calc_index(climindvis_st, index = "tn10p", iformat = "perc", aggt = "annual", trend = "Mannkendall", NAmaxTrend = 20)
+index_tn10p <- calc_index(climindvis_st, index = "tn10p", aggt = "annual", trend = "Mannkendall", NAmaxTrend = 20)
 
 
 #Aqui estan todos los datos del indice, tendencias lineal y loess, metricas de la tendencia, etc
