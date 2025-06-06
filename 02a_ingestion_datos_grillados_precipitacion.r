@@ -24,7 +24,7 @@ print(names(nc_file$dim))
 # El importante saber que ClimIndVis trabaja con datos de PP diaria no acumulada y valores en mm.
 print(nc_file$var$Precipitation_flux)
 
-# Como esta información no está, o bien podemos consultar el sitio desde el cual fue descargado
+# Como esta información no está, o bien podemos consultar el sitio donde fue descargado
 # o analizar un poco más la información. Para ello, obtenemos todos los valores de PP.
 prec <- ncdf4::ncvar_get(nc_file, varid = "Precipitation_flux")
 
@@ -33,7 +33,7 @@ print(names(nc_file$dim))
 dim(prec)
 
 # Tiene 70 longitudes, 60 latitudes y 12053 fechas. Analicemos los datos de PP
-# para la primer celda de la grilla, mediante una serie temporal. Sumemos también algunas
+# para una celda cualquiera de la grilla, mediante una serie temporal. Sumemos también algunas
 # medidas de posición.
 pp_analisis <- prec[30,25,]
 plot(pp_analisis)
@@ -54,8 +54,10 @@ tail(fechas)
 # Seguimos con las longitudes y latitudes.
 longitude <- ncvar_get(nc_file, varid = "longitude")
 head(longitude)
+range(longitude)
 latitude <- ncvar_get(nc_file, varid = "latitude")
 head(latitude)
+range(latitude)
 
 # Haciendo una inspección, se observa que las latitudes no están ordenadas
 # de modo ascendente. Por tal motivo, hay que ordenar las latitudes. A raíz de esto, también
