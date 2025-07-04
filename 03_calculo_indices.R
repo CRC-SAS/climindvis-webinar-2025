@@ -5,6 +5,9 @@ gc();
 # Cargar librerias necesarias
 library(ClimIndVis)
 library(dplyr)
+library(tidyr)
+library(readr)
+library(purrr)
 
 
 # Carga el archivo .RData
@@ -19,7 +22,48 @@ load("data/ClimIndVis_Stations.RData")
 
 # Días secos (dd) (Prec < 1mm). index_arguments.dd
 
-dd <- calc_index(
+dd_mensual <- calc_index(
+  climindvis = climindvis_st,
+  index = "dd",
+  iformat = "perc",       # "perc"(default) / "days" 
+  NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  aggt = "monthly",         # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
+#  aggmons = c(1,4),
+  dd_threshold = 1        # 1 (default), definido por el usuario    
+)
+
+
+# Ejemplo de cómo se pueden guardar los datos mensuales (12 por año) en un formato más amigable:
+
+datos_dd_mensual <- purrr::imap_dfr(
+  .x = dplyr::pull(metadatos, omm_id),
+  .f = function(omm_id, i) {
+    indice_dd <- dd_mensual$index
+    dd_estacion <- indice_dd[i,,]
+    datos_dd_estacion <- purrr::map_dfr(
+      .x = seq(from = 1, to = 12),
+      .f = function(mes) {
+        datos_dd_estacion_mes <- dd_estacion[mes,]
+        return (tibble::tibble(
+          omm_id = omm_id,
+          year = names(datos_dd_estacion_mes),
+          month = mes,
+          value = unname(datos_dd_estacion_mes)
+        ))
+      }
+    )
+    
+    return (datos_dd_estacion)
+  }
+) %>% dplyr::arrange(omm_id, year, month)
+
+write.table(datos_dd_mensual, "dd_perc_mensual.txt", sep="\t", row.names = TRUE)
+
+
+
+
+
+dd_anual <- calc_index(
   climindvis = climindvis_st,
   index = "dd",
   iformat = "perc",       # "perc"(default) / "days" 
@@ -29,7 +73,42 @@ dd <- calc_index(
   dd_threshold = 1        # 1 (default), definido por el usuario    
 )
 
-write.table(dd$index, "dd_perc.txt", sep="\t", row.names = TRUE)
+
+dim(dd$index)
+
+# Ejemplo de cómo se pueden guardar los datos anuales (1 por año) en un formato más amigable:
+
+#si los datos son de a 1 por año:
+datos_dd_anual <- purrr::imap_dfr(
+  .x = dplyr::pull(metadatos, omm_id),
+  .f = function(omm_id, i) {
+    indice <- dd_anual$index
+    indice_estacion <- indice[i,]
+    return (tibble::tibble(
+      omm_id = omm_id,
+      year = names(indice_estacion),
+      value = unname(indice_estacion)
+    ))
+  }
+)
+write.table(datos_dd_anual, "dd_perc_anual.txt", sep="\t", row.names = TRUE)
+
+
+
+# otra opcion es definir los datos entre dias especificos con "dates":
+
+dd_anual_dates <- calc_index(
+  climindvis = climindvis_st,
+  index = "dd",
+  iformat = "perc",       # "perc"(default) / "days" 
+  NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  aggt = "dates",         # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
+  start_days = "0000-01-15",
+  end_days = "0000-05-14",
+  dd_threshold = 1        # 1 (default), definido por el usuario    
+)
+
+
 
 ################################################################################
 # Días con heladas (fd) (Tmin < 0). index_arguments.fd
@@ -255,13 +334,13 @@ cxd <- calc_index(
 ################################################################################
 # duración de períodos fríos (csdi)
 
-csdi <- calc_index(
   climindvis = climindvis_st,
   index = "csdi",        
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   qthreshold = 10,          # 10 (default) umbral de cuantil de ola de frío
   n = 5,                    # 5 (default) tamaño de ventana (en días) para ejecutar la ventana en el cálculo del cuantil de temperatura. 
   min_length = 6,           # 6 (default) longitud mínima de duración de ola de frío 
+csdi <- calc_index(
   spells_span_agg = TRUE,   # FALSE (default) ¿Deberían considerarse las períodos que comienzan antes del período de agregación elegido?
   baseperiod = c(1981,2010),# Vector de año de inicio y fin para el cálculo de cuantiles. Si no se proporciona, se utilizará todo el rango de años del conjunto de datos para el cálculo de los cuantiles
   inbase = FALSE,           # TRUE (default) Para los cuantiles de temperatura, calcule los cuantiles dentro y fuera del período base siguiendo el método de impulso de Zhang 2005. Solo se aplica cuando se selecciona el período base
@@ -446,60 +525,175 @@ qrange <- calc_index(
 ################################################################################
 # Media (mean)
 
-
-
-
-
-
-
-
-
-
-#si queremos un gráfico con la serie temporal usamos autoplot_ts_stations
-
-autoplot_ts_stations(
-  dat_p = climindvis_st,
-  index = "dd",
-  index_args = list(iformat = "days",list(aggt = "annual"),     #"perc"
-  
-  #  index_args = list(list(aggt="annual"),list(aggt="seasonal")),
-                              # "annual", "seasonal", selagg(1:4)
-  ts_type = "multi_agg")
-)
-  
-autoplot_ts_stations(
-  dat_p = climindvis_st,
-  index = "dd", 
-  index_args = list(iformat = "days",list(aggt="annual"),list(aggt="seasonal")), #no se como poner en dias
-  # "annual", "seasonal", selagg(1:4)
-  ts_type = "multi_agg",
-  selyears = c(1981:1990),    #(default es periodo comppleto)
-  title="días secos", #no funciona 
-  plot_title = TRUE,
-  plot_legend = TRUE,
-#  ylims = c(10:90)   no funciona
-  cex = 1,
-  text_cex = 1
-  
+mean <- calc_index(
+  climindvis = climindvis_st,
+  index = "mean",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  var = "tmax",             # prec / tmin / tmax / tavg  
+  aggt = "annual"           # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
 )
 
 
+################################################################################
+# Suma (sum)
 
-autoplot_ts_stations(
-  dat_p = climindvis_st,
-  index = "dd", 
-  aggt="annual",
-  # "annual", "seasonal", selagg(1:4)
-  ts_type = "multi_agg",
-  selyears = c(1961:2024),    #(default es periodo comppleto)
-  title="días secos", #no funciona 
-  plot_title = TRUE,
-  plot_legend = TRUE,
-  #  ylims = c(10:90)   no funciona
-  cex = 1,
-  text_cex = 1
-  
+sum <- calc_index(
+  climindvis = climindvis_st,
+  index = "sum",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  var = "prec",             # prec / tmin / tmax / tavg  
+  aggt = "annual"           # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
 )
+
+
+################################################################################
+# SPI (spi) indice de precipitación estandarizado
+
+spi <- calc_index(
+  climindvis = climindvis_st,
+  index = "spi",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  timescale = 1,            # 6 (default) escala de tiempo para el cálculo de SPI mensual.
+  ref = c(1971,2010),       # Vector con año de inicio y fin del período de referencia. Si no se especifica ningún período de referencia, se utiliza el período completo como período de referencia.    var = "prec",             # prec / tmin / tmax / tavg  
+  distribution = "gamma",   # gamma (default)
+  limit = 3,                # 4 (default) Trunque los valores de SPI que sean mayores que un umbral determinado, ya que los valores mayores que 4 no son razonables. El truncamiento se puede desactivar estableciendo límite = Inf.
+  aggt = "monthly"
+  )
+
+
+datos_spi <- purrr::imap_dfr(
+  .x = dplyr::pull(metadatos, omm_id),
+  .f = function(omm_id, i) {
+    indice_spi <- spi$index
+    spi_estacion <- indice_spi[i,,]
+    datos_spi_estacion <- purrr::map_dfr(
+      .x = seq(from = 1, to = 12),
+      .f = function(mes) {
+        datos_spi_estacion_mes <- spi_estacion[mes,]
+        return (tibble::tibble(
+          omm_id = omm_id,
+          year = names(datos_spi_estacion_mes),
+          month = mes,
+          value = unname(datos_spi_estacion_mes)
+        ))
+      }
+    )
+    
+    return (datos_spi_estacion)
+  }
+) %>% dplyr::arrange(omm_id, year, month)
+
+write.table(datos_spi,file="spi1_climindvis_limit3.txt")
+
+
+
+
+################################################################################
+# SPI (spi) pronóstico indice de precipitación estandarizado
+# FALTA TERMINAR!!
+#hay que bajar un pronostico y ponerlo en formato ClimIndVis, lo haria como ultimo esto
+
+spi_forecast <- calc_index(
+  climindvis = climindvis_st,
+  index = "spi_forecast",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  fc_p = 
+  timescale = 6,            # 6 (default) escala de tiempo para el cálculo de SPI mensual.
+  ref = c(1971,2010),       # Vector con año de inicio y fin del período de referencia. Si no se especifica ningún período de referencia, se utiliza el período completo como período de referencia.    var = "prec",             # prec / tmin / tmax / tavg  
+  distribution = "gamma",   # gamma (default)
+  limit = 4,                # 4 (default) Trunque los valores de SPI que sean mayores que un umbral determinado, ya que los valores mayores que 4 no son razonables. El truncamiento se puede desactivar estableciendo límite = Inf.
+  aggt = "monthly"
+)
+
+ 
+################################################################################
+# Índice simple de intensidad diaria (sdii) 
+
+sdii <- calc_index(
+  climindvis = climindvis_st,
+  index = "sdii",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  dd_threshold = 1,         # 1 (default) Umbral de precipitación para días secos en mm
+  aggt = "monthly"
+)
+
+
+################################################################################
+# Precipitación total en los días húmedos (prcptot) 
+
+prcptot <- calc_index(
+  climindvis = climindvis_st,
+  index = "prcptot",        
+  NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
+  dd_threshold = 1,         # 1 (default) Umbral de precipitación para días secos en mm
+  aggt = "monthly"
+)
+
+
+################################################################################
+# Inicio de la temporada de lluvias (rainy_season_start) 
+#Metodo gurgiser
+
+rainy_season_start <- calc_index(
+  climindvis = climindvis_st,
+  index = "rainy_season_start",        
+  aggt = "dates",
+  start_days = "0000-02-01",
+  end_days = "0000-11-01",  
+  NAmaxAgg = 20, 
+  rs_method="gurgiser")
+
+
+#Metodo consec_th 
+
+rainy_season_start <- calc_index(
+  climindvis = climindvis_st,
+  index = "rainy_season_start",        
+  days =  4,                    # Número de días consecutivos de los cuales la suma de precipitación es superior al umbral <<th>>
+  th = 30,                      # Umbral para la suma de precipitaciones de <<días>> días consecutivos en mm
+  dd_th = 1,                    # Umbral de día seco
+  nval = "/",                   # Valor que se devuelve si no se cumplen los criterios para el inicio de la temporada de lluvias, predeterminado=NA. Se pueden establecer otros valores para distinguir entre años en los que los datos son NA y años en los que no se cumplen los criterios del índice.
+  mdays = 10,                   # Número de días para comprobar <<mcdd>>
+  mcdd = 7,                     # Máximo de días secos consecutivos en los próximos <<mdays>> días
+  aggt = "dates",
+  start_days = "0000-06-01",
+  end_days = "0000-03-01",
+  rs_method="consec_th")
+
+
+################################################################################
+# Fin de la temporada de lluvias (rainy_season_end) 
+
+#Metodo gurgiser
+
+rainy_season_end <- calc_index(
+  climindvis = climindvis_st,
+  index = "rainy_season_end",        
+#  days =  4,                    # Número de días consecutivos de los cuales la suma de precipitación es superior al umbral <<th>>
+  aggt = "dates",
+  start_days = "0000-08-01",  #tener conocimiento de la climatologia del lugar. Si llueve de abr a oct, poner fecha inicio en el maximo de la estacion lluviosa y el fin muchos meses despues que termine
+  end_days = "0000-01-01",  
+  NAmaxAgg = 20, 
+  rs_method="gurgiser")
+
+
+
+################################################################################
+# Duración de la temporada de lluvias (rainy_season_dur) ESTA MAL EN Help del RStudio
+#Metodo gurgiser
+
+
+rainy_season_dur <- calc_index(
+  climindvis = climindvis_st,
+  index = "rainy_season_dur",        
+  aggt = "dates",
+  day_start = "0000-02-01",   #indicates the first day of the calculation for the start of the rainy season
+  day_end = "0000-08-01",     #the first day of the time series for calculating the end of the rainy season
+  NAmaxAgg = 20, 
+  rs_method="gurgiser")
+
+
+
 
 
 
