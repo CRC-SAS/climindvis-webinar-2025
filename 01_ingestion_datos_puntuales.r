@@ -37,13 +37,21 @@ buenos_aires <- readr::read_delim('data/Registros_87585_Buenos_Aires.csv', delim
   dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp)
 head(buenos_aires)
 
-# Lo mismo hacemos para Posadas Aero
+# Lo mismo hacemos para Posadas, Tartagel y Bariloche
 posadas_aero <- readr::read_delim('data/Registros_87178_Posadas_Aero.csv', delim = "\t", na = c("\\N")) %>%
   dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp)
 head(posadas_aero)
 
+tartagal <- readr::read_delim('data/Registros_87022_Tartagal_Aero.csv', delim = "\t", na = c("\\N")) %>%
+  dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp)
+head(tartagal)
+
+bariloche <- readr::read_delim('data/Registros_87765_Bariloche_Aero.csv', delim = "\t", na = c("\\N")) %>%
+  dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp)
+head(bariloche)
+
 # Ahora procedemos a consolidar los datos en un solo tibble.
-datos <- dplyr::bind_rows(buenos_aires, posadas_aero)
+datos <- dplyr::bind_rows(buenos_aires, posadas_aero, tartagal, bariloche)
 
 # Una vez que se tienen los datos consolidados, se necesita definir una única serie
 # de fechas para ambas estaciones. Es posible que los rangos no sean los mismos o que haya fechas faltantes.
@@ -55,8 +63,10 @@ fechas <- seq(from = min(datos$fecha), to = max(datos$fecha), by = "day")
 # Mediante la función left_join, forzamos a que cada serie de datos tenga exactamente las fechas requeridas.
 fechas_df <- tibble::tibble(fecha = fechas)
 datos <- dplyr::bind_rows(
+  dplyr::left_join(fechas_df, tartagal, by = "fecha"),
+  dplyr::left_join(fechas_df, posadas_aero, by = "fecha"),
   dplyr::left_join(fechas_df, buenos_aires, by = "fecha"),
-  dplyr::left_join(fechas_df, posadas_aero, by = "fecha")
+  dplyr::left_join(fechas_df, bariloche, by = "fecha")
 )
 
 # Ahora vamos a generar una matriz de datos para cada variable (tmax, tmin, tmed y prcp). 
@@ -116,7 +126,7 @@ nombres <- metadatos %>%
 data_info <- list(
   type = "p", # Indicamos que son datos puntuales
   date_format = "t1d", # Indicamos que es una serie temporal de 1 dimensión (para hindcasts y forecasts esto es distinto)
-  data_name = "Datos puntuales de Buenos Aires y Posadas Aero", # Nombre de nuestro dataset
+  data_name = "Datos puntuales de Tartagal, Posadas, Buenos Aires y Bariloche", # Nombre de nuestro dataset
   pnames = nombres # Nombre de cada punto (estaciones)
 )
 
