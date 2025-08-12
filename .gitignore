@@ -52,3 +52,4 @@ rsconnect/
 # NetCDF and RData files in data/
 data/*.nc
 data/*.RData
+data/*.png
