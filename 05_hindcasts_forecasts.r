@@ -60,7 +60,7 @@ process_nc_file_precip_CDS <- function(nc_file_path, data_info, factor = 1, diff
   # Si tienen solamente una realizacion, agregarla pero en tercer lugar
   if (length(dim(precip)) != 5) {
     precip <- abind(precip, along = 5)
-    if ((length(realizations) == 1) && (data_info$type == "grid_hc")) {
+    if (length(realizations) == 1) {
       precip <- aperm(precip, c(1, 2, 5, 3, 4))
     }
   }
@@ -169,7 +169,7 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   if (length(dim(precip)) != 5) {
     maxtemp <- abind(maxtemp, along = 5)
     mintemp <- abind(mintemp, along = 5)
-    if ((length(realizations) == 1) && (data_info$type == "grid_hc")) {
+    if (length(realizations) == 1){
       maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
       mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
     }
@@ -240,6 +240,36 @@ climindvis_hc_MF5 <- process_nc_file_precip_CDS(
 climindvis_hc_UK12 <- process_nc_file_precip_CDS(
   nc_file_path = "data/hindcasts/UK12.nc",
   data_info = list(type="grid_hc", date_format="t2d", data_name="UK12 hindcast", fmon="01"),
+  factor = 1000, 
+  diff = TRUE
+)
+
+### II. Forecasts ###
+
+climindvis_fc_ECCC5 <- process_nc_file_precip_CDS(
+  nc_file_path = "data/forecasts/ECCC5_fc.nc",
+  data_info = list(type="grid_fc", date_format="t2d", data_name="ECCC5 forecast", fmon="01"),
+  factor = 1000, 
+  diff = TRUE
+)
+
+climindvis_fc_ECMWF51 <- process_nc_file_precip_CDS(
+  nc_file_path = "data/forecasts/ECMWF51_fc.nc",
+  data_info = list(type="grid_fc", date_format="t2d", data_name="ECMWF51 forecast", fmon="01"),
+  factor = 1000, 
+  diff = TRUE
+)
+
+climindvis_fc_JMA3 <- process_nc_file_precip_CDS(
+  nc_file_path = "data/forecasts/JMA3_fc.nc",
+  data_info = list(type="grid_fc", date_format="t2d", data_name="JMA3 forecast", fmon="01"),
+  factor = 1000, 
+  diff = TRUE
+)
+
+climindvis_fc_NCEP2 <- process_nc_file_precip_CDS(
+  nc_file_path = "data/forecasts/NCEP2_fc.nc",
+  data_info = list(type="grid_fc", date_format="t2d", data_name="NCEP2 forecast", fmon="01"),
   factor = 1000, 
   diff = TRUE
 )
