@@ -193,64 +193,43 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
 }
 
 
-### Crear Objeto ClimIndVis Hindcast ###
+### Ejemplo SPI Forecast usando ClimIndVis_Stations.RData ###
 
+# Datos del 01_ingestion_datos_puntuales.r
+load("data/ClimIndVis_Stations.RData")
+
+# Prueba rápida del anomaly time series del SPI
+autoplot_anomaly_ts(climindvis_st, index = "spi",
+                    index_args = list(aggt = "monthly"),
+                    ts_type = "single_ts", pcols = "royalblue",
+                    output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/", plotname = "SPI_Test ")
+
+# Datos del forecast
 # Definir data_info
-# Asegúrese de que "type" incluye "hc" o "fc", ya que las funciones de autoplot buscan por eso
-data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
-
-
-climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "../ENANDES_CLIMA/Hindcast Data/hindcasts_ecuador_precip_1981_1990_janfebmar.nc",
-                                                            data_info = data_info)
-
-climindvis_grid_tmax_tmin_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "Hindcast Data/hindcast_max_min_temp_Argentina_jan_1981_1990.nc",
-                                                                       data_info = data_info)
-
-### Crear Objeto ClimIndVis Forecast ### 
-
-# Definir data_info
-# Asegúrese de que "type" incluye "hc" o "fc", ya que las funciones de autoplot buscan por eso
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
 
-climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "Hindcast Data/forecast_ecuador_janfebmar_2024.nc",
+climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
-climindvis_grid_tmax_tmin_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "Hindcast Data/forecast_max_min_temp_Argentina_jan_2024.nc", 
-                                                                       data_info = data_info)
+# Convertir climindvis grid en un climindvis point objeto 
+
+# SPI Forecast
+autoplot_forecast_spi(obs_p = climindvis_st)
 
 
 
+### Más ejemplos  ###
+# Forecast Precipitation Argentina Jan 2025
+data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
 
-# Usar la función autoplot 
-#autoplot_forecast_map(fc_grid = climindvis_grid_forecast, hc_grid = climindvis_grid_hindcast, index ="dd", index_args = list(aggt = "seasonal"), 
-                      #selyears = 1981:1990, 
-                      #plotdir = "/home/zue/users/wer/R/ENANDES_CLIMA/", output = "png")
+climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+                                                            data_info = data_info)
+# Hindcast Precipitation Argentina Jan 1981-2010
 
-autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "other", aggmons = c(4:7)),
-                      plotdir = "/home/zue/users/wer/R/ENANDES_CLIMA/Workshop2/", output = "png")
-autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "seasonal"),
-                      plotdir = "/home/zue/users/wer/R/ENANDES_CLIMA/Workshop2/", output = "png")
+data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
 
-#### temperature indices ###
-# coldest daily minimum temperature 
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="tnn", index_args = list(aggt = "other",aggmons = c(4:7)),
-                      plotdir = "/home/zue/users/wer/R/ENANDES_CLIMA/Workshop2/", output = "png")
-# coldest daily maximum temperature 
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="txn", index_args = list(aggt = "other",aggmons = c(4:7)))
-# hottest daily maximum temperature 
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="txx", index_args = list(aggt = "other",aggmons = c(4:7)))
+climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
+                                                            data_info = data_info)
 
-
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="th", index_args = list(aggt = "other",aggmons = c(4:7), th = 5, thvar = "tmin", op = ">"))
-
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="tx90p", index_args = list(aggt = "other",aggmons = c(4:7)))
-
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="mean", index_args = list(aggt = "other",aggmons = c(4:7), var="tmax"))
-
-autoplot_forecast_map(fc_grid = climindvis_grid_tmax_tmin_forecast, hc_grid = climindvis_grid_tmax_tmin_hindcast, index ="fd", index_args = list(aggt = "seasonal"))
-
-
-
-
-
-
+autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "other", aggmons = c(1:2)),
+                      plotdir = "../ENANDES_CLIMA/Workshop2/", output = "png", plotname = "TEST ")
