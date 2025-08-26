@@ -15,12 +15,12 @@ library(abind)
 # data_info debe tener el siguiente formato: list(type="", date_format="", data_name="",fmon="")
 # Para más información, consulte aquí: https://rdrr.io/github/Climandes/ClimIndVis/man/make_object.html
 
-process_nc_file_precip_CDS <- function(nc_file_path, data_info) {
-  
+process_nc_file_precip_CDS <- function(nc_file_path, data_info, factor = 1, diff = FALSE) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
   
   # Extraer la precipitación y el tiempo
+  realizations <- ncvar_get(nc_file, varid = "number")
   precip <- ncvar_get(nc_file, varid = "tp")
   valid_time <- ncvar_get(nc_file, varid = "valid_time")
   
@@ -51,14 +51,36 @@ process_nc_file_precip_CDS <- function(nc_file_path, data_info) {
   # Ajustar las dimensiones de la precipitación
   if (length(dim(precip)) == 5){
     precip <- aperm(precip, c(1, 2, 5, 3, 4)) 
-  } else if (length(dim(precip)) == 4){
+  } else if ((length(dim(precip)) == 4) && (length(realizations) > 1)) {
     precip <- aperm(precip, c(1, 2, 4, 3)) 
   }
   
-  
-  # Añada una quinta dimensión si los datos sólo contienen un año
+  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+  # Si tienen solamente una realizacion, agregarla pero en tercer lugar
   if (length(dim(precip)) != 5) {
     precip <- abind(precip, along = 5)
+    if (length(realizations) == 1) {
+      precip <- aperm(precip, c(1, 2, 5, 3, 4))
+    }
+  }
+  
+  # Aplicar factor si corresponde
+  if (factor != 1) {
+    precip <- precip * factor
+  }
+  
+  # Aplicar diferencia si corresponde
+  if (diff) {
+    dims <- dim(precip)
+    for(x in seq_len(dims[1])) {
+      for(y in seq_len(dims[2])) {
+        for(n in seq_len(dims[3])) {
+          for (t in seq_len(dims[5])) {
+            precip[x, y, n, , t] <- c(precip[x, y, n, 1, t], diff(precip[x, y, n, , t], lag=1))
+          }
+        }
+      }
+    }
   }
   
   # Crear objeto ClimIndVis
@@ -78,11 +100,11 @@ process_nc_file_precip_CDS <- function(nc_file_path, data_info) {
 }
 
 process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
-  
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
   
-  # Extraer la precipitación y el tiempo
+  # Extraer la temperatura maxima, miminma y el tiempo
+  realizations <- ncvar_get(nc_file, varid = "number")
   maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
   mintemp <- ncvar_get(nc_file, varid = "mn2t24")
   valid_time <- ncvar_get(nc_file, varid = "valid_time")
@@ -136,10 +158,20 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   }
   
   
-  # Añada una quinta dimensión si los datos sólo contienen un año
+  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
   if (length(dim(maxtemp)) != 5) {
     maxtemp <- abind(maxtemp, along = 5)
     mintemp <- abind(mintemp, along = 5)
+  }
+  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+  # Si tienen solamente una realizacion, agregarla pero en tercer lugar
+  if (length(dim(precip)) != 5) {
+    maxtemp <- abind(maxtemp, along = 5)
+    mintemp <- abind(mintemp, along = 5)
+    if (length(realizations) == 1){
+      maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
+      mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
+    }
   }
   
   # Crear objeto ClimIndVis
@@ -168,7 +200,7 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
 
 
-climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "Hindcast Data/hindcasts_ecuador_precip_1981_1990_janfebmar.nc",
+climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "../ENANDES_CLIMA/Hindcast Data/hindcasts_ecuador_precip_1981_1990_janfebmar.nc",
                                                             data_info = data_info)
 
 climindvis_grid_tmax_tmin_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "Hindcast Data/hindcast_max_min_temp_Argentina_jan_1981_1990.nc",
