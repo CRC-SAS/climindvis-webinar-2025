@@ -231,5 +231,11 @@ data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="
 climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
                                                             data_info = data_info)
 
-autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "other", aggmons = c(1:2)),
-                      plotdir = "../ENANDES_CLIMA/Workshop2/", output = "png", plotname = "TEST ")
+autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "seasonal", selagg = "MAM"))
+autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "other", aggmons = c(1:3)))
+
+# Forecast Temperature Argentina Jan 2025
+data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
+
+climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+                                                            data_info = data_info)
