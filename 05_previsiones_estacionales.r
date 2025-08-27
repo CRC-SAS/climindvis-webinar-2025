@@ -192,6 +192,76 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   return(climindvis_grid)
 }
 
+process_nc_file_max_temp_CDS <- function(nc_file_path, data_info) {
+  # Abrir el archivo NetCDF
+  nc_file <- nc_open(nc_file_path)
+  
+  # Extraer la temperatura maxima y el tiempo
+  realizations <- ncvar_get(nc_file, varid = "number")
+  maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
+  valid_time <- ncvar_get(nc_file, varid = "valid_time")
+  
+  # Obtener la unidad de la variable
+  maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
+  
+  # Convert from Kelvin to Celsius if needed
+  if (maxtemp_units == "K") {
+    maxtemp <- maxtemp - 273.15
+  }
+  
+  # Convertir valid_time en fechas normalizadas
+  valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
+  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
+  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Ordenación de la latitud
+  if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
+    lat <- nc_file$dim$latitude$vals[length(nc_file$dim$latitude$vals):1]
+    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$latitude$vals):1, , , ] else maxtemp[,length(nc_file$dim$latitude$vals):1, , ]
+  } else {
+    lat <- nc_file$dim$latitude$vals
+  }
+  
+  # Ordenación de la longitud
+  if (!all(diff(nc_file$dim$longitude$vals) >= 0)) {
+    lon <- nc_file$dim$longitude$vals[length(nc_file$dim$longitude$vals):1]
+    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$longitude$vals):1, , ,] else maxtemp[,length(nc_file$dim$longitude$vals):1, , ]
+  } else {
+    lon <- nc_file$dim$longitude$vals
+  }
+  
+  # Ajustar las dimensiones de la temperatura
+  if (length(dim(maxtemp)) == 5){
+    maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
+  } else if (length(dim(maxtemp)) == 4){
+    maxtemp <- aperm(maxtemp, c(1, 2, 4, 3)) 
+  }
+  
+  # Añadir una quinta dimensión si falta
+  if (length(dim(maxtemp)) != 5) {
+    maxtemp <- abind(maxtemp, along = 5)
+    if (length(realizations) == 1){
+      maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
+    }
+  }
+  
+  # Crear objeto ClimIndVis solo con Tmax
+  climindvis_grid <- make_object(
+    tmax = maxtemp,
+    dates_tmax = valid_time_normal,
+    lon = lon,
+    lat = lat,
+    data_info = data_info
+  )
+  
+  # Cerrar el archivo NetCDF
+  nc_close(nc_file)
+  
+  # Retornar el objeto ClimIndVis
+  return(climindvis_grid)
+}
+
+
 
 ### Ejemplo SPI Forecast usando ClimIndVis_Stations.RData ###
 
@@ -239,3 +309,11 @@ data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="
 
 climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
+
+data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
+
+climindvis_grid_tmax_hindcast <- process_nc_file_max_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
+                                                            data_info = data_info)
+
+autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", index_args = list(aggt = "seasonal", selagg = "MAM"))
+
