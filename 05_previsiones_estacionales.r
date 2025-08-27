@@ -233,7 +233,7 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
     }
   }
   
-  # Crear objeto ClimIndVis with available data
+  # Crear objeto ClimIndVis
   climindvis_grid <- make_object(
     tmin = mintemp,
     tmax = maxtemp,
@@ -253,9 +253,9 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
 
 
 process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos, factor = 1, diff = FALSE) {
-  # Validate metadatos input
+  # Validar la entrada de metadatos
   if (!all(c("longitude", "latitude") %in% names(metadatos))) {
-    stop("metadatos must contain 'longitude' and 'latitude' columns")
+    stop("Los metadatos deben contener las columnas «longitud» y «latitud».")
   }
   
   # Abrir el archivo NetCDF
@@ -271,7 +271,7 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
   valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
   
-  # Get original lat/lon from file
+  # Obtener latitud y longitud originales del archivo
   lat_orig <- nc_file$dim$latitude$vals
   lon_orig <- nc_file$dim$longitude$vals
   
@@ -326,48 +326,48 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
     }
   }
   
-  # Extract data at specific points
+  # Extraer datos en puntos específicos
   n_points <- nrow(metadatos)
   
-  # Find nearest grid points for each station
+  # Encuentre los puntos grillado más cercanos para cada estación
   nearest_indices <- matrix(NA, nrow = n_points, ncol = 2)
   colnames(nearest_indices) <- c("lon_idx", "lat_idx")
   
-  # Store actual grid coordinates for printing
+  # Almacenar las coordenadas reales grilladas
   grid_coords <- data.frame(
     grid_lon = numeric(n_points),
     grid_lat = numeric(n_points)
   )
   
   for (i in 1:n_points) {
-    # Find nearest longitude index
+    # Buscar el índice de longitud más cercano
     lon_diff <- abs(lon - metadatos$longitude[i])
     nearest_indices[i, "lon_idx"] <- which.min(lon_diff)
     grid_coords$grid_lon[i] <- lon[nearest_indices[i, "lon_idx"]]
     
-    # Find nearest latitude index
+    # Buscar el índice de latitude más cercano
     lat_diff <- abs(lat - metadatos$latitude[i])
     nearest_indices[i, "lat_idx"] <- which.min(lat_diff)
     grid_coords$grid_lat[i] <- lat[nearest_indices[i, "lat_idx"]]
   }
   
-  # Print coordinate information
+  # Imprimir información de coordenadas
   cat("Coordinate mapping:\n")
   cat("==================\n")
   for (i in 1:n_points) {
     cat(sprintf("Point %d:\n", i))
-    cat(sprintf("  Requested (station): lon = %.4f, lat = %.4f\n", 
+    cat(sprintf("  Punto de estación: lon = %.4f, lat = %.4f\n", 
                 metadatos$longitude[i], metadatos$latitude[i]))
-    cat(sprintf("  Nearest grid point:  lon = %.4f, lat = %.4f\anantml", 
+    cat(sprintf("  Punto grillado más cercano:  lon = %.4f, lat = %.4f\anantml", 
                 grid_coords$grid_lon[i], grid_coords$grid_lat[i]))
-    cat(sprintf("  Distance: %.4f degrees\n", 
+    cat(sprintf("  Distancia: %.4f degrees\n", 
                 sqrt((metadatos$longitude[i] - grid_coords$grid_lon[i])^2 + 
                        (metadatos$latitude[i] - grid_coords$grid_lat[i])^2)))
     cat("\n")
   }
   
-  # Extract precipitation data for the selected points
-  # New dimensions: POINTS x ENSEMBLE x LEADTIME x YEAR
+  # Extraer datos de precipitación para los puntos seleccionados
+  # Nuevo dimension: POINTS x ENSEMBLE x LEADTIME x YEAR
   dims_original <- dim(precip)
   precip_points <- array(NA, dim = c(n_points, dims_original[3], dims_original[4], dims_original[5]))
   
@@ -376,12 +376,12 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
                                      nearest_indices[i, "lat_idx"], , , ]
   }
   
-  # Replace coordinates with exact station coordinates
-  # This ensures autoplot functions work correctly
+  # Reemplazar las coordenadas con las coordenadas exactas de la estación
+  # Esto garantiza que las funciones de autoplot funcionen correctamente
   point_lons <- metadatos$longitude
   point_lats <- metadatos$latitude
   
-  # Create point ClimIndVis object
+  # Crear objeto ClimIndVis
   climindvis_points <- make_object(
     prec = precip_points,
     dates_prec = valid_time_normal,
