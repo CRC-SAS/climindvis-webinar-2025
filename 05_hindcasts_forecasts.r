@@ -16,6 +16,89 @@ library(ClimIndVis)
 # data_info debe tener el siguiente formato: list(type="", date_format="", data_name="",fmon="")
 # Para más información, consulte aquí: https://rdrr.io/github/Climandes/ClimIndVis/man/make_object.html
 
+process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, st_longitudes, st_latitudes, 
+                                                 factor = 1, diff = FALSE) {
+  # Abrir el archivo NetCDF
+  nc_file <- nc_open(nc_file_path)
+  
+  # Extraer la precipitación y el tiempo
+  realizations <- ncvar_get(nc_file, varid = "number")
+  precip <- ncvar_get(nc_file, varid = "tp")
+  valid_time <- ncvar_get(nc_file, varid = "valid_time")
+  
+  # Convertir valid_time en fechas normalizadas
+  valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
+  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
+  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Ordenación de la latitud
+  if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
+    lat <- nc_file$dim$latitude$vals[length(nc_file$dim$latitude$vals):1]
+    #precip <- precip[, length(nc_file$dim$latitude$vals):1, , , ] #,
+    precip <- if (length(dim(precip)) == 5) precip[,length(nc_file$dim$latitude$vals):1, , , ] else precip[,length(nc_file$dim$latitude$vals):1, , ]
+  } else {
+    lat <- nc_file$dim$latitude$vals
+  }
+  
+  # Ordenación de la longitud
+  if (!all(diff(nc_file$dim$longitude$vals) >= 0)) {
+    lon <- nc_file$dim$longitude$vals[length(nc_file$dim$longitude$vals):1]
+    #precip <- precip[length(nc_file$dim$longitude$vals):1, , , , ]
+    precip <- if (length(dim(precip)) == 5) precip[,length(nc_file$dim$longitude$vals):1, , ,] else precip[,length(nc_file$dim$longitude$vals):1, , ]
+  } else {
+    lon <- nc_file$dim$longitude$vals
+  }
+  
+  # LON LAT ENSEMBLE MEMBERS LEADTIME YEAR
+  # Ajustar las dimensiones de la precipitación
+  if (length(dim(precip)) == 5){
+    precip <- aperm(precip, c(1, 2, 5, 3, 4)) 
+  } else if ((length(dim(precip)) == 4) && (length(realizations) > 1)) {
+    precip <- aperm(precip, c(1, 2, 4, 3)) 
+  }
+  
+  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+  # Si tienen solamente una realizacion, agregarla pero en tercer lugar
+  if (length(dim(precip)) != 5) {
+    precip <- abind(precip, along = 5)
+    if (length(realizations) == 1) {
+      precip <- aperm(precip, c(1, 2, 5, 3, 4))
+    }
+  }
+  
+  # Aplicar factor si corresponde
+  if (factor != 1) {
+    precip <- precip * factor
+  }
+  
+  # Aplicar diferencia si corresponde
+  if (diff) {
+    dims <- dim(precip)
+    for(x in seq_len(dims[1])) {
+      for(y in seq_len(dims[2])) {
+        for(n in seq_len(dims[3])) {
+          for (t in seq_len(dims[5])) {
+            precip[x, y, n, , t] <- c(precip[x, y, n, 1, t], diff(precip[x, y, n, , t], lag=1))
+          }
+        }
+      }
+    }
+  }
+  
+  # 1. Buscar celdas correspondientes a latitudes y longitudes
+  
+  # 2. Generar matriz con dimensiones [stations] x [ensemble members] x [forecast days]
+  
+  # 3. Generar objeto ClimIndVis
+  
+  
+  # Cerrar el archivo NetCDF
+  nc_close(nc_file)
+  
+  # Mostrar el objeto ClimIndVis
+  return(climindvis_st)
+}
+
 process_nc_file_precip_CDS <- function(nc_file_path, data_info, factor = 1, diff = FALSE) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
