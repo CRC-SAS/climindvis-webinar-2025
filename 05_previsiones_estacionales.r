@@ -104,29 +104,29 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
   
-  # Get list of variables in the file
+  # Obtener la lista de variables del archivo
   var_names <- names(nc_file$var)
   
-  # Check which temperature variables are present
+  # Comprueba qué variables de temperatura están presentes
   has_tmax <- "mx2t24" %in% var_names
   has_tmin <- "mn2t24" %in% var_names
   
-  # Initialize variables as NULL
+  # Inicializar variables como NULL
   maxtemp <- NULL
   mintemp <- NULL
   maxtemp_units <- NULL
   mintemp_units <- NULL
   
-  # Extract realizations and valid_time (these should always be present)
+  # Extraiga las realizaciones y valid_time (estas siempre deben estar presentes)
   realizations <- ncvar_get(nc_file, varid = "number")
   valid_time <- ncvar_get(nc_file, varid = "valid_time")
   
-  # Extract temperature variables if they exist
+  # Extraer las variables de temperatura si existen
   if (has_tmax) {
     maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
     maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
     
-    # Convert from Kelvin to Celsius if needed
+    # Convierta de Kelvin a Celsius si es necesario
     if (maxtemp_units == "K") {
       maxtemp <- maxtemp - 273.15
     }
@@ -136,16 +136,16 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
     mintemp <- ncvar_get(nc_file, varid = "mn2t24")
     mintemp_units <- ncatt_get(nc_file, "mn2t24", "units")$value
     
-    # Convert from Kelvin to Celsius if needed
+    # Convierta de Kelvin a Celsius si es necesario.
     if (mintemp_units == "K") {
       mintemp <- mintemp - 273.15
     }
   }
   
-  # Check if at least one temperature variable exists
+  # Comprueba si existe al menos una variable de temperatura
   if (!has_tmax && !has_tmin) {
     nc_close(nc_file)
-    stop("Neither mx2t24 nor mn2t24 found in the NetCDF file")
+    stop("Ni mx2t24 ni mn2t24 se encuentran en el archivo NetCDF.")
   }
   
   # Convertir valid_time en fechas normalizadas
@@ -153,7 +153,7 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
   valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
   
-  # Use whichever temperature array exists for dimension checking
+  # Utilice cualquier matriz de temperatura existente para la comprobación de dimensiones
   temp_for_dims <- if (!is.null(maxtemp)) maxtemp else mintemp
   
   # Ordenación de la latitud
@@ -268,7 +268,6 @@ autoplot_anomaly_ts(climindvis_st, index = "spi",
 # Datos del forecast
 # Definir data_info
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-
 climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
@@ -281,30 +280,35 @@ autoplot_forecast_spi(obs_p = climindvis_st)
 
 ### Más ejemplos  ###
 
-# Forecast Precipitation Argentina Jan 2025
+# Forecast Precipitación Argentina Enero 2025 con max lead time
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
 climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
-# Hindcast Precipitation Argentina Jan 1981-2010
+# Hindcast Precipitación Argentina Enero 1981-2010 con max lead time
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
 climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
                                                             data_info = data_info)
 
-autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "seasonal", selagg = "MAM"))
-autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", index_args = list(aggt = "other", aggmons = c(1:3)))
+# Ejemplos
+autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", 
+                      index_args = list(aggt = "seasonal", selagg = "MAM"))
+autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", 
+                      index_args = list(aggt = "other", aggmons = c(1:3)))
 
-# Forecast Temperature Argentina Jan 2025
+
+# Forecast Temperatura (tmax,tmin) Argentina Enero 2025
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
 climindvis_grid_temp_forecast1 <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                                   data_info = data_info)
 
-# Hindcast Temperature Argentina Jan 1981-2010
+# Hindcast Temperatura (solamente tmax) Argentina Enero 1981-2010
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
 climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
                                                               data_info = data_info)
+
 # Forecast Map WSDI 
 autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", 
                       index_args = list(aggt = "seasonal", selagg = "MAM"),
-                      output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/")
+                      output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/") # Ajusta esto si quieres guardar el gráfico con tu directorio
 
