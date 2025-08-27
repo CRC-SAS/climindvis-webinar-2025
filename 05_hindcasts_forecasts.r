@@ -8,6 +8,8 @@ rm(list=objects())
 # Cargar librerías
 library(ncdf4)
 library(abind)
+library(dplyr)
+library(purrr)
 library(ClimIndVis)
 
 # Función para crear un objeto ClimIndVis a partir de hindcasts/forecasts del CDS 
@@ -16,7 +18,7 @@ library(ClimIndVis)
 # data_info debe tener el siguiente formato: list(type="", date_format="", data_name="",fmon="")
 # Para más información, consulte aquí: https://rdrr.io/github/Climandes/ClimIndVis/man/make_object.html
 
-process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, st_longitudes, st_latitudes, 
+process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, metadatos, 
                                                  factor = 1, diff = FALSE) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
@@ -85,12 +87,64 @@ process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, st_lon
     }
   }
   
-  # 1. Buscar celdas correspondientes a latitudes y longitudes
+  # 1. Get station name, longitude and latitude.
+  station_names <- metadatos %>%
+    dplyr::pull(name)
+  longitudes <- metadatos %>%
+    dplyr::pull(longitude)
+  latitudes <- metadatos %>%
+    dplyr::pull(latitude)
   
-  # 2. Generar matriz con dimensiones [stations] x [ensemble members] x [forecast days]
+  # 2. Find cell for each station. I assume that latitude and longitude values
+  #    correspond to the center of each cell.
+  delta_x <- as.numeric(unique(diff(lon))/2)
+  delta_y <- as.numeric(unique(diff(lat))/2)
+  breaks_longitud <- c(lon - delta_x, max(lon) + delta_x)
+  breaks_latitud <- c(lat - delta_y, max(lat) + delta_y)
+  celdas <- purrr::pmap(
+    .l = list(longitudes, latitudes),
+    .f = function(longitud, latitud) {
+      x <- cut(x = longitud, breaks = breaks_longitud, labels = FALSE, right = FALSE)
+      y <- cut(x = latitud, breaks = breaks_latitud, labels = FALSE, right = FALSE)
+      if (! is.na(x) && ! is.na(y)) {
+        return (c(x, y))
+      } else {
+        return (NULL)
+      }
+    }
+  )
   
-  # 3. Generar objeto ClimIndVis
+  # 3. filter out cell outside the bounding box. Redefine list of names, longitudes and latitudes.
+  celdas_interiores <- which(! unlist(purrr::map(celdas, is.null)))
+  station_names     <- station_names[celdas_interiores]
+  longitudes        <- longitudes[celdas_interiores]
+  latitudes         <- latitudes[celdas_interiores]
+  celdas            <- celdas[celdas_interiores]
+
+  # 4. Generar matriz con dimensiones [stations] x [ensemble members] x [forecast days] x [forecast years]
+  dimensiones_originales <- dim(precip)
+  dimensiones <- c(length(celdas), dimensiones_originales[3:5])
+  matriz <- array(data = NA, dim = dimensiones)
+  for (i in seq_along(celdas)) {
+    celda <- celdas[[i]]
+    matriz[i,,,] <- precip[celda[1], celda[2], , , ]
+  }
   
+  # 4. Generar objeto ClimIndVis
+  data_info_st <- list(
+    type = "p_fc",
+    date_format = data_info$date_format,
+    data_name = data_info$data_name,
+    fmon = data_info$fmon, 
+    pnames = station_names
+  )
+  climindvis_st <- make_object(
+    prec = matriz,
+    dates_prec = valid_time_normal,
+    lon = longitudes,
+    lat = latitudes,
+    data_info = data_info_st
+  )
   
   # Cerrar el archivo NetCDF
   nc_close(nc_file)
@@ -276,6 +330,9 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   return(climindvis_grid)
 }
 
+# Carga de datos de estaciones puntuales
+load("data/ClimIndVis_Stations.RData")
+
 ### I. Hindcasts ###
 
 climindvis_hc_NCEP2 <- process_nc_file_precip_CDS(
@@ -353,6 +410,15 @@ climindvis_fc_JMA3 <- process_nc_file_precip_CDS(
 climindvis_fc_NCEP2 <- process_nc_file_precip_CDS(
   nc_file_path = "data/forecasts/NCEP2_fc.nc",
   data_info = list(type="grid_fc", date_format="t2d", data_name="NCEP2 forecast", fmon="01"),
+  factor = 1000, 
+  diff = TRUE
+)
+
+# Obtencion de datos puntuales en base a ECMWF51_fc.nc. Solamente 1 estacion esta dentro del BBOX
+climindvis_fc_ECMWF51_st <- process_nc_file_precip_CDS_to_points(
+  nc_file_path = "data/forecasts/ECMWF51_fc.nc",
+  data_info = list(type="grid_fc", date_format="t2d", data_name="ECMWF51 forecast", fmon="01"),
+  metadatos = metadatos,
   factor = 1000, 
   diff = TRUE
 )
