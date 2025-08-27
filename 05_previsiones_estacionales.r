@@ -99,27 +99,53 @@ process_nc_file_precip_CDS <- function(nc_file_path, data_info, factor = 1, diff
   return(climindvis_grid)
 }
 
+
 process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
   
-  # Extraer la temperatura maxima, miminma y el tiempo
+  # Get list of variables in the file
+  var_names <- names(nc_file$var)
+  
+  # Check which temperature variables are present
+  has_tmax <- "mx2t24" %in% var_names
+  has_tmin <- "mn2t24" %in% var_names
+  
+  # Initialize variables as NULL
+  maxtemp <- NULL
+  mintemp <- NULL
+  maxtemp_units <- NULL
+  mintemp_units <- NULL
+  
+  # Extract realizations and valid_time (these should always be present)
   realizations <- ncvar_get(nc_file, varid = "number")
-  maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
-  mintemp <- ncvar_get(nc_file, varid = "mn2t24")
   valid_time <- ncvar_get(nc_file, varid = "valid_time")
   
-  # Obtener la unidad de las variables
-  maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
-  mintemp_units <- ncatt_get(nc_file, "mn2t24", "units")$value
-  
-  # Convert from Kelvin to Celsius if needed
-  if (maxtemp_units == "K") {
-    maxtemp <- maxtemp - 273.15
+  # Extract temperature variables if they exist
+  if (has_tmax) {
+    maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
+    maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
+    
+    # Convert from Kelvin to Celsius if needed
+    if (maxtemp_units == "K") {
+      maxtemp <- maxtemp - 273.15
+    }
   }
   
-  if (mintemp_units == "K") {
-    mintemp <- mintemp - 273.15
+  if (has_tmin) {
+    mintemp <- ncvar_get(nc_file, varid = "mn2t24")
+    mintemp_units <- ncatt_get(nc_file, "mn2t24", "units")$value
+    
+    # Convert from Kelvin to Celsius if needed
+    if (mintemp_units == "K") {
+      mintemp <- mintemp - 273.15
+    }
+  }
+  
+  # Check if at least one temperature variable exists
+  if (!has_tmax && !has_tmin) {
+    nc_close(nc_file)
+    stop("Neither mx2t24 nor mn2t24 found in the NetCDF file")
   }
   
   # Convertir valid_time en fechas normalizadas
@@ -127,12 +153,26 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
   valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
   
+  # Use whichever temperature array exists for dimension checking
+  temp_for_dims <- if (!is.null(maxtemp)) maxtemp else mintemp
+  
   # Ordenación de la latitud
   if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
     lat <- nc_file$dim$latitude$vals[length(nc_file$dim$latitude$vals):1]
-    #precip <- precip[, length(nc_file$dim$latitude$vals):1, , , ] #,
-    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$latitude$vals):1, , , ] else maxtemp[,length(nc_file$dim$latitude$vals):1, , ]
-    mintemp <- if (length(dim(mintemp)) == 5) mintemp[,length(nc_file$dim$latitude$vals):1, , , ] else mintemp[,length(nc_file$dim$latitude$vals):1, , ]
+    if (!is.null(maxtemp)) {
+      maxtemp <- if (length(dim(maxtemp)) == 5) {
+        maxtemp[,length(nc_file$dim$latitude$vals):1, , , ]
+      } else {
+        maxtemp[,length(nc_file$dim$latitude$vals):1, , ]
+      }
+    }
+    if (!is.null(mintemp)) {
+      mintemp <- if (length(dim(mintemp)) == 5) {
+        mintemp[,length(nc_file$dim$latitude$vals):1, , , ]
+      } else {
+        mintemp[,length(nc_file$dim$latitude$vals):1, , ]
+      }
+    }
   } else {
     lat <- nc_file$dim$latitude$vals
   }
@@ -140,46 +180,64 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   # Ordenación de la longitud
   if (!all(diff(nc_file$dim$longitude$vals) >= 0)) {
     lon <- nc_file$dim$longitude$vals[length(nc_file$dim$longitude$vals):1]
-    #precip <- precip[length(nc_file$dim$longitude$vals):1, , , , ]
-    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$longitude$vals):1, , ,] else maxtemp[,length(nc_file$dim$longitude$vals):1, , ]
-    mintemp <- if (length(dim(mintemp)) == 5) mintemp[,length(nc_file$dim$longitude$vals):1, , ,] else mintemp[,length(nc_file$dim$longitude$vals):1, , ]
+    if (!is.null(maxtemp)) {
+      maxtemp <- if (length(dim(maxtemp)) == 5) {
+        maxtemp[,length(nc_file$dim$longitude$vals):1, , ,]
+      } else {
+        maxtemp[,length(nc_file$dim$longitude$vals):1, , ]
+      }
+    }
+    if (!is.null(mintemp)) {
+      mintemp <- if (length(dim(mintemp)) == 5) {
+        mintemp[,length(nc_file$dim$longitude$vals):1, , ,]
+      } else {
+        mintemp[,length(nc_file$dim$longitude$vals):1, , ]
+      }
+    }
   } else {
     lon <- nc_file$dim$longitude$vals
   }
   
   # LON LAT ENSEMBLE MEMBERS LEADTIME YEAR
-  # Ajustar las dimensiones de la precipitación
-  if (length(dim(maxtemp)) == 5){
-    maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
-    mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
-  } else if (length(dim(maxtemp)) == 4){
-    maxtemp <- aperm(maxtemp, c(1, 2, 4, 3))
-    mintemp <- aperm(mintemp, c(1, 2, 4, 3)) 
-  }
-  
-  
-  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
-  if (length(dim(maxtemp)) != 5) {
-    maxtemp <- abind(maxtemp, along = 5)
-    mintemp <- abind(mintemp, along = 5)
-  }
-  # Añada una quinta dimensión si los datos sólo contienen un año de inicio
-  # Si tienen solamente una realizacion, agregarla pero en tercer lugar
-  if (length(dim(precip)) != 5) {
-    maxtemp <- abind(maxtemp, along = 5)
-    mintemp <- abind(mintemp, along = 5)
-    if (length(realizations) == 1){
+  # Ajustar las dimensiones
+  if (!is.null(maxtemp)) {
+    if (length(dim(maxtemp)) == 5) {
       maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
-      mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
+    } else if (length(dim(maxtemp)) == 4) {
+      maxtemp <- aperm(maxtemp, c(1, 2, 4, 3))
+    }
+    
+    # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+    if (length(dim(maxtemp)) != 5) {
+      maxtemp <- abind(maxtemp, along = 5)
+      if (length(realizations) == 1) {
+        maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
+      }
     }
   }
   
-  # Crear objeto ClimIndVis
+  if (!is.null(mintemp)) {
+    if (length(dim(mintemp)) == 5) {
+      mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
+    } else if (length(dim(mintemp)) == 4) {
+      mintemp <- aperm(mintemp, c(1, 2, 4, 3))
+    }
+    
+    # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+    if (length(dim(mintemp)) != 5) {
+      mintemp <- abind(mintemp, along = 5)
+      if (length(realizations) == 1) {
+        mintemp <- aperm(mintemp, c(1, 2, 5, 3, 4))
+      }
+    }
+  }
+  
+  # Crear objeto ClimIndVis with available data
   climindvis_grid <- make_object(
     tmin = mintemp,
     tmax = maxtemp,
-    dates_tmin = valid_time_normal,
-    dates_tmax = valid_time_normal,
+    dates_tmin = if (!is.null(mintemp)) valid_time_normal else NULL,
+    dates_tmax = if (!is.null(maxtemp)) valid_time_normal else NULL,
     lon = lon,
     lat = lat,
     data_info = data_info
@@ -192,74 +250,7 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   return(climindvis_grid)
 }
 
-process_nc_file_max_temp_CDS <- function(nc_file_path, data_info) {
-  # Abrir el archivo NetCDF
-  nc_file <- nc_open(nc_file_path)
-  
-  # Extraer la temperatura maxima y el tiempo
-  realizations <- ncvar_get(nc_file, varid = "number")
-  maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
-  valid_time <- ncvar_get(nc_file, varid = "valid_time")
-  
-  # Obtener la unidad de la variable
-  maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
-  
-  # Convert from Kelvin to Celsius if needed
-  if (maxtemp_units == "K") {
-    maxtemp <- maxtemp - 273.15
-  }
-  
-  # Convertir valid_time en fechas normalizadas
-  valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
-  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
-  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
-  
-  # Ordenación de la latitud
-  if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
-    lat <- nc_file$dim$latitude$vals[length(nc_file$dim$latitude$vals):1]
-    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$latitude$vals):1, , , ] else maxtemp[,length(nc_file$dim$latitude$vals):1, , ]
-  } else {
-    lat <- nc_file$dim$latitude$vals
-  }
-  
-  # Ordenación de la longitud
-  if (!all(diff(nc_file$dim$longitude$vals) >= 0)) {
-    lon <- nc_file$dim$longitude$vals[length(nc_file$dim$longitude$vals):1]
-    maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(nc_file$dim$longitude$vals):1, , ,] else maxtemp[,length(nc_file$dim$longitude$vals):1, , ]
-  } else {
-    lon <- nc_file$dim$longitude$vals
-  }
-  
-  # Ajustar las dimensiones de la temperatura
-  if (length(dim(maxtemp)) == 5){
-    maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
-  } else if (length(dim(maxtemp)) == 4){
-    maxtemp <- aperm(maxtemp, c(1, 2, 4, 3)) 
-  }
-  
-  # Añadir una quinta dimensión si falta
-  if (length(dim(maxtemp)) != 5) {
-    maxtemp <- abind(maxtemp, along = 5)
-    if (length(realizations) == 1){
-      maxtemp <- aperm(maxtemp, c(1, 2, 5, 3, 4))
-    }
-  }
-  
-  # Crear objeto ClimIndVis solo con Tmax
-  climindvis_grid <- make_object(
-    tmax = maxtemp,
-    dates_tmax = valid_time_normal,
-    lon = lon,
-    lat = lat,
-    data_info = data_info
-  )
-  
-  # Cerrar el archivo NetCDF
-  nc_close(nc_file)
-  
-  # Retornar el objeto ClimIndVis
-  return(climindvis_grid)
-}
+
 
 
 
@@ -289,15 +280,14 @@ autoplot_forecast_spi(obs_p = climindvis_st)
 
 
 ### Más ejemplos  ###
+
 # Forecast Precipitation Argentina Jan 2025
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-
 climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
+
 # Hindcast Precipitation Argentina Jan 1981-2010
-
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
-
 climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
                                                             data_info = data_info)
 
@@ -306,14 +296,15 @@ autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climind
 
 # Forecast Temperature Argentina Jan 2025
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
+climindvis_grid_temp_forecast1 <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+                                                                  data_info = data_info)
 
-climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
-                                                            data_info = data_info)
-
+# Hindcast Temperature Argentina Jan 1981-2010
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
-
-climindvis_grid_tmax_hindcast <- process_nc_file_max_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
-                                                            data_info = data_info)
-
-autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", index_args = list(aggt = "seasonal", selagg = "MAM"))
+climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
+                                                              data_info = data_info)
+# Forecast Map WSDI 
+autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", 
+                      index_args = list(aggt = "seasonal", selagg = "MAM"),
+                      output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/")
 
