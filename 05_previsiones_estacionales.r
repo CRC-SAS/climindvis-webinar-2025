@@ -1,5 +1,5 @@
-### This script is intended to read hindcasts from Climate Data Store into a 
-### ClimIndVis object and make different plots using autoplot_* functions
+### Este script está diseñado para leer Forecasts/Hindcasts del Climate Data Store y crear  
+### objetos de ClimIndVis y crear diferentes gráficos utilizando las funciones autoplot_*
 
 # Para obtener una guía paso a paso sobre cómo descargar los datos de previsión del Climate Data Store (CDS), 
 # consulte el manual proporcionado en el curso de Moodle 
@@ -623,7 +623,7 @@ autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climind
 
 # Forecast Temperatura (tmax,tmin) Argentina Enero 2025
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-climindvis_grid_temp_forecast1 <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                                   data_info = data_info)
 
 # Hindcast Temperatura (solamente tmax) Argentina Enero 1981-2010
@@ -633,8 +633,7 @@ climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path =
 
 # Ejemplo duración de períodos cálídos (wsdi) 
 autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", 
-                      index_args = list(aggt = "seasonal", selagg = "MAM"),
-                      output = "png", plotdir = "TU_DIRECTORIO") # Ajusta esto para guardar el gráfico en tu directorio
+                      index_args = list(aggt = "seasonal", selagg = "MAM"))
 
 
 ### Ejemplo Forecast Station ###
@@ -646,13 +645,13 @@ nombres <- metadatos %>%
   dplyr::arrange(omm_id) %>%
   dplyr::pull(name)
 
-# Objecto ClimIndVis point Forecast Precipitación
+# Objeto ClimIndVis point Forecast Precipitación
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
 climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
-# Objecto ClimIndVis point Hindcast Precipitación
+# Objeto ClimIndVis point Hindcast Precipitación
 data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
                   pnames=nombres)
 climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_points(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
@@ -667,13 +666,13 @@ autoplot_forecast_stations(
 
 # Ejemplo Temparatura 
 
-# ClimIndVis objecto point Forecast Temperatura (tmax,tmin) Argentina Enero 2025
+# ClimIndVis objeto point Forecast Temperatura (tmax,tmin) Argentina Enero 2025
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
 climindvis_point_temp_forecast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos)
 
-# ClimIndVis objecto point Hindcast Temperatura (solamente tmax) Argentina Enero 2025
+# ClimIndVis objeto point Hindcast Temperatura (solamente tmax) Argentina Enero 2025
 data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
                   pnames=nombres)
 climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc", data_info, 
@@ -683,7 +682,7 @@ climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_fil
 autoplot_forecast_stations(
   fc_p = climindvis_point_temp_forecast, hc_p = climindvis_point_tmax_hindcast, obs_p = climindvis_st,
   index = "wsdi",  index_args = list(aggt = "seasonal", selagg = "MAM"),
-  verify = FALSE)
+  verify = FALSE, plot_climatology = TRUE)
 
 
 
