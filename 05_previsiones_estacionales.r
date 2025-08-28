@@ -585,12 +585,8 @@ climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_p
 
 
 # SPI Forecast 
-autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),
-                      plotstart = 2015, output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/",plotname = "FINALTEST")
-
-# Ejemplo der paquete 
-autoplot_forecast_spi(obs_p = object_st, fc_p = object_fc_st, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),plotstart = 2008)
-
+autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=6),
+                      plotstart = 2015, output = "png", plotdir = "TUDIRECTORIO",plotname = "FINALTEST")
 
 
 ### Ejemplo Forecast Map ###
@@ -639,13 +635,13 @@ nombres <- metadatos %>%
 # Objeto ClimIndVis point Forecast Precipitación
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 # Objeto ClimIndVis point Hindcast Precipitación
 data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_points(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
+climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 # Ejemplo días secos (dd)
