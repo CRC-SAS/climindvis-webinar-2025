@@ -669,8 +669,13 @@ climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_fil
 autoplot_forecast_stations(
   fc_p = climindvis_point_temp_forecast, hc_p = climindvis_point_tmax_hindcast, obs_p = climindvis_st,
   index = "wsdi",  index_args = list(aggt = "seasonal", selagg = "MAM"),
-  verify = FALSE, plot_climatology = TRUE)
+  verify = TRUE, plot_climatology = TRUE)
 
+# Ejemplo con verificación
+autoplot_forecast_stations(
+  fc_p = climindvis_point_temp_forecast, hc_p = climindvis_point_tmax_hindcast, obs_p = climindvis_st,
+  index = "wsdi",  index_args = list(aggt = "seasonal", selagg = "MAM"),
+  verify = TRUE, veri_metric = "Ens2AFC", plot_climatology = TRUE)
 
 
 
