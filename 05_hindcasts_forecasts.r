@@ -417,8 +417,45 @@ climindvis_fc_NCEP2 <- process_nc_file_precip_CDS(
 # Obtencion de datos puntuales en base a ECMWF51_fc.nc. Solamente 1 estacion esta dentro del BBOX
 climindvis_fc_ECMWF51_st <- process_nc_file_precip_CDS_to_points(
   nc_file_path = "data/forecasts/ECMWF51_fc.nc",
-  data_info = list(type="grid_fc", date_format="t2d", data_name="ECMWF51 forecast", fmon="01"),
+  data_info = list(type="grid_fc", date_format="t2d", data_name="ECMWF51 forecast", fmon=1),
   metadatos = metadatos,
   factor = 1000, 
   diff = TRUE
+)
+
+# Obtencion de datos puntuales de Tartagal (estación que se encuentra dentro del bounding box del forecast).
+tartagal <- readr::read_delim('data/Registros_87022_Tartagal_Aero.csv', delim = "\t", na = c("\\N")) %>%
+  dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp) %>%
+  dplyr::arrange(fecha)
+head(tartagal)
+fechas <- seq(from = min(tartagal$fecha), to = max(tartagal$fecha), by = "day")
+
+prcp_tartagal <- array(data = NA, dim = c(1, length(fechas)))
+prcp_tartagal[1, ] <- dplyr::pull(tartagal, prcp)
+
+latitud <- metadatos %>%
+  dplyr::filter(omm_id == 87022) %>%
+  dplyr::pull(latitude)
+longitud <- metadatos %>%
+  dplyr::filter(omm_id == 87022) %>%
+  dplyr::pull(longitude)
+
+climindvis_tartagal <- ClimIndVis::make_object(
+  prec = prcp_tartagal,
+  dates_prec = fechas,
+  lon = longitud,
+  lat = latitud,
+  data_info = list(
+    type = "p",
+    date_format = "t1d",
+    data_name = "Datos puntuales de Tartagal",
+    pnames = climindvis_fc_ECMWF51_st$data_info$pnames
+  )
+)
+
+ClimIndVis::autoplot_forecast_spi(
+  obs_p = climindvis_tartagal, 
+  fc_p = climindvis_fc_ECMWF51_st, 
+  index = "spi_forecast",
+  index_args = list(aggt = "monthly")
 )
