@@ -30,7 +30,8 @@ process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, metada
   
   # Convertir valid_time en fechas normalizadas
   valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
-  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
+  # FIX: Se resta un día para que pueda comenzar el 1 de enero
+  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z") - lubridate::days(1)
   valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
   
   # Ordenación de la latitud
@@ -457,5 +458,6 @@ ClimIndVis::autoplot_forecast_spi(
   obs_p = climindvis_tartagal, 
   fc_p = climindvis_fc_ECMWF51_st, 
   index = "spi_forecast",
-  index_args = list(aggt = "monthly")
+  index_args = list(aggt = "monthly"),
+  plotstart = 2010
 )
