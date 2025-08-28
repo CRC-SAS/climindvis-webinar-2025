@@ -252,12 +252,8 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
 }
 
 
-process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos, factor = 1, diff = FALSE) {
-  # Validar la entrada de metadatos
-  if (!all(c("longitude", "latitude") %in% names(metadatos))) {
-    stop("Los metadatos deben contener las columnas «longitud» y «latitud».")
-  }
-  
+process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, metadatos, 
+                                                 factor = 1, diff = FALSE) {
   # Abrir el archivo NetCDF
   nc_file <- nc_open(nc_file_path)
   
@@ -268,38 +264,38 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
   
   # Convertir valid_time en fechas normalizadas
   valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
-  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
+  # FIX: Se resta un día para que pueda comenzar el 1 de enero
+  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z") - lubridate::days(1)
   valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
   
-  # Obtener latitud y longitud originales del archivo
-  lat_orig <- nc_file$dim$latitude$vals
-  lon_orig <- nc_file$dim$longitude$vals
-  
   # Ordenación de la latitud
-  if (!all(diff(lat_orig) >= 0)) {
-    lat <- lat_orig[length(lat_orig):1]
-    precip <- if (length(dim(precip)) == 5) precip[,length(lat_orig):1, , , ] else precip[,length(lat_orig):1, , ]
+  if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
+    lat <- nc_file$dim$latitude$vals[length(nc_file$dim$latitude$vals):1]
+    #precip <- precip[, length(nc_file$dim$latitude$vals):1, , , ] #,
+    precip <- if (length(dim(precip)) == 5) precip[,length(nc_file$dim$latitude$vals):1, , , ] else precip[,length(nc_file$dim$latitude$vals):1, , ]
   } else {
-    lat <- lat_orig
+    lat <- nc_file$dim$latitude$vals
   }
   
   # Ordenación de la longitud
-  if (!all(diff(lon_orig) >= 0)) {
-    lon <- lon_orig[length(lon_orig):1]
-    precip <- if (length(dim(precip)) == 5) precip[,length(lon_orig):1, , ,] else precip[,length(lon_orig):1, , ]
+  if (!all(diff(nc_file$dim$longitude$vals) >= 0)) {
+    lon <- nc_file$dim$longitude$vals[length(nc_file$dim$longitude$vals):1]
+    #precip <- precip[length(nc_file$dim$longitude$vals):1, , , , ]
+    precip <- if (length(dim(precip)) == 5) precip[,length(nc_file$dim$longitude$vals):1, , ,] else precip[,length(nc_file$dim$longitude$vals):1, , ]
   } else {
-    lon <- lon_orig
+    lon <- nc_file$dim$longitude$vals
   }
   
   # LON LAT ENSEMBLE MEMBERS LEADTIME YEAR
   # Ajustar las dimensiones de la precipitación
   if (length(dim(precip)) == 5){
-    precip <- aperm(precip, c(1, 2, 5, 3, 4))
+    precip <- aperm(precip, c(1, 2, 5, 3, 4)) 
   } else if ((length(dim(precip)) == 4) && (length(realizations) > 1)) {
-    precip <- aperm(precip, c(1, 2, 4, 3))
+    precip <- aperm(precip, c(1, 2, 4, 3)) 
   }
   
   # Añada una quinta dimensión si los datos sólo contienen un año de inicio
+  # Si tienen solamente una realizacion, agregarla pero en tercer lugar
   if (length(dim(precip)) != 5) {
     precip <- abind(precip, along = 5)
     if (length(realizations) == 1) {
@@ -326,77 +322,71 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
     }
   }
   
-  # Extraer datos en puntos específicos
-  n_points <- nrow(metadatos)
+  # 1. Get station name, longitude and latitude.
+  station_names <- metadatos %>%
+    dplyr::pull(name)
+  longitudes <- metadatos %>%
+    dplyr::pull(longitude)
+  latitudes <- metadatos %>%
+    dplyr::pull(latitude)
   
-  # Encuentre los puntos grillado más cercanos para cada estación
-  nearest_indices <- matrix(NA, nrow = n_points, ncol = 2)
-  colnames(nearest_indices) <- c("lon_idx", "lat_idx")
-  
-  # Almacenar las coordenadas reales grilladas
-  grid_coords <- data.frame(
-    grid_lon = numeric(n_points),
-    grid_lat = numeric(n_points)
+  # 2. Find cell for each station. I assume that latitude and longitude values
+  #    correspond to the center of each cell.
+  delta_x <- as.numeric(unique(diff(lon))/2)
+  delta_y <- as.numeric(unique(diff(lat))/2)
+  breaks_longitud <- c(lon - delta_x, max(lon) + delta_x)
+  breaks_latitud <- c(lat - delta_y, max(lat) + delta_y)
+  celdas <- purrr::pmap(
+    .l = list(longitudes, latitudes),
+    .f = function(longitud, latitud) {
+      x <- cut(x = longitud, breaks = breaks_longitud, labels = FALSE, right = FALSE)
+      y <- cut(x = latitud, breaks = breaks_latitud, labels = FALSE, right = FALSE)
+      if (! is.na(x) && ! is.na(y)) {
+        return (c(x, y))
+      } else {
+        return (NULL)
+      }
+    }
   )
   
-  for (i in 1:n_points) {
-    # Buscar el índice de longitud más cercano
-    lon_diff <- abs(lon - metadatos$longitude[i])
-    nearest_indices[i, "lon_idx"] <- which.min(lon_diff)
-    grid_coords$grid_lon[i] <- lon[nearest_indices[i, "lon_idx"]]
-    
-    # Buscar el índice de latitude más cercano
-    lat_diff <- abs(lat - metadatos$latitude[i])
-    nearest_indices[i, "lat_idx"] <- which.min(lat_diff)
-    grid_coords$grid_lat[i] <- lat[nearest_indices[i, "lat_idx"]]
+  # 3. filter out cell outside the bounding box. Redefine list of names, longitudes and latitudes.
+  celdas_interiores <- which(! unlist(purrr::map(celdas, is.null)))
+  station_names     <- station_names[celdas_interiores]
+  longitudes        <- longitudes[celdas_interiores]
+  latitudes         <- latitudes[celdas_interiores]
+  celdas            <- celdas[celdas_interiores]
+  
+  # 4. Generar matriz con dimensiones [stations] x [ensemble members] x [forecast days] x [forecast years]
+  dimensiones_originales <- dim(precip)
+  dimensiones <- c(length(celdas), dimensiones_originales[3:5])
+  matriz <- array(data = NA, dim = dimensiones)
+  for (i in seq_along(celdas)) {
+    celda <- celdas[[i]]
+    matriz[i,,,] <- precip[celda[1], celda[2], , , ]
   }
   
-  # Imprimir información de coordenadas
-  cat("Coordinate mapping:\n")
-  cat("==================\n")
-  for (i in 1:n_points) {
-    cat(sprintf("Point %d:\n", i))
-    cat(sprintf("  Punto de estación: lon = %.4f, lat = %.4f\n", 
-                metadatos$longitude[i], metadatos$latitude[i]))
-    cat(sprintf("  Punto grillado más cercano:  lon = %.4f, lat = %.4f\anantml", 
-                grid_coords$grid_lon[i], grid_coords$grid_lat[i]))
-    cat(sprintf("  Distancia: %.4f degrees\n", 
-                sqrt((metadatos$longitude[i] - grid_coords$grid_lon[i])^2 + 
-                       (metadatos$latitude[i] - grid_coords$grid_lat[i])^2)))
-    cat("\n")
-  }
-  
-  # Extraer datos de precipitación para los puntos seleccionados
-  # Nuevo dimension: POINTS x ENSEMBLE x LEADTIME x YEAR
-  dims_original <- dim(precip)
-  precip_points <- array(NA, dim = c(n_points, dims_original[3], dims_original[4], dims_original[5]))
-  
-  for (i in 1:n_points) {
-    precip_points[i, , , ] <- precip[nearest_indices[i, "lon_idx"], 
-                                     nearest_indices[i, "lat_idx"], , , ]
-  }
-  
-  # Reemplazar las coordenadas con las coordenadas exactas de la estación
-  # Esto garantiza que las funciones de autoplot funcionen correctamente
-  point_lons <- metadatos$longitude
-  point_lats <- metadatos$latitude
-  
-  # Crear objeto ClimIndVis
-  climindvis_points <- make_object(
-    prec = precip_points,
+  # 4. Generar objeto ClimIndVis
+  data_info_st <- list(
+    type = "p_fc",
+    date_format = data_info$date_format,
+    data_name = data_info$data_name,
+    fmon = data_info$fmon, 
+    pnames = station_names
+  )
+  climindvis_st <- make_object(
+    prec = matriz,
     dates_prec = valid_time_normal,
-    lon = point_lons,
-    lat = point_lats,
-    data_info = data_info
+    lon = longitudes,
+    lat = latitudes,
+    data_info = data_info_st
   )
   
   # Cerrar el archivo NetCDF
   nc_close(nc_file)
   
-  # Return the point ClimIndVis object
-  return(climindvis_points)
+  # Mostrar el objeto ClimIndVis
+  return(climindvis_st)
 }
-
 
 process_nc_file_max_min_temp_CDS_points <- function(nc_file_path, data_info, metadatos) {
   # Validar la entrada de metadatos
@@ -590,12 +580,13 @@ nombres <- metadatos %>%
 
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 
 # SPI Forecast 
-autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),plotstart = 2015)
+autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),
+                      plotstart = 2015, output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/",plotname = "FINALTEST")
 
 # Ejemplo der paquete 
 autoplot_forecast_spi(obs_p = object_st, fc_p = object_fc_st, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),plotstart = 2008)
