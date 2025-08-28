@@ -53,3 +53,5 @@ rsconnect/
 data/*.nc
 data/*.RData
 data/*.png
+data/forecasts/*.nc
+data/hindcasts/*.nc
