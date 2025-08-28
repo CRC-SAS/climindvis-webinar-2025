@@ -398,6 +398,172 @@ process_nc_file_precip_CDS_points <- function(nc_file_path, data_info, metadatos
 }
 
 
+process_nc_file_max_min_temp_CDS_points <- function(nc_file_path, data_info, metadatos) {
+  # Validar la entrada de metadatos
+  if (!all(c("longitude", "latitude") %in% names(metadatos))) {
+    stop("Los metadatos deben contener las columnas «longitude» y «latitude».")
+  }
+  
+  # Abrir el archivo NetCDF
+  nc_file <- nc_open(nc_file_path)
+  
+  # Obtener la lista de variables del archivo
+  var_names <- names(nc_file$var)
+  
+  # Comprueba qué variables de temperatura están presentes
+  has_tmax <- "mx2t24" %in% var_names
+  has_tmin <- "mn2t24" %in% var_names
+  
+  # Inicializar variables
+  maxtemp <- NULL
+  mintemp <- NULL
+  maxtemp_units <- NULL
+  mintemp_units <- NULL
+  
+  # Extraiga las realizaciones y valid_time
+  realizations <- ncvar_get(nc_file, varid = "number")
+  valid_time <- ncvar_get(nc_file, varid = "valid_time")
+  
+  # Extraer Tmax
+  if (has_tmax) {
+    maxtemp <- ncvar_get(nc_file, varid = "mx2t24")
+    maxtemp_units <- ncatt_get(nc_file, "mx2t24", "units")$value
+    if (maxtemp_units == "K") {
+      maxtemp <- maxtemp - 273.15
+    }
+  }
+  
+  # Extraer Tmin
+  if (has_tmin) {
+    mintemp <- ncvar_get(nc_file, varid = "mn2t24")
+    mintemp_units <- ncatt_get(nc_file, "mn2t24", "units")$value
+    if (mintemp_units == "K") {
+      mintemp <- mintemp - 273.15
+    }
+  }
+  
+  # Comprobar que haya al menos una variable
+  if (!has_tmax && !has_tmin) {
+    nc_close(nc_file)
+    stop("Ni mx2t24 ni mn2t24 se encuentran en el archivo NetCDF.")
+  }
+  
+  # Convertir valid_time en fechas normalizadas
+  valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
+  valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z")
+  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Obtener lat/lon originales
+  lat_orig <- nc_file$dim$latitude$vals
+  lon_orig <- nc_file$dim$longitude$vals
+  
+  # Ordenación de latitudes
+  if (!all(diff(lat_orig) >= 0)) {
+    lat <- lat_orig[length(lat_orig):1]
+    if (!is.null(maxtemp)) {
+      maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(lat_orig):1, , , ] else maxtemp[,length(lat_orig):1, , ]
+    }
+    if (!is.null(mintemp)) {
+      mintemp <- if (length(dim(mintemp)) == 5) mintemp[,length(lat_orig):1, , , ] else mintemp[,length(lat_orig):1, , ]
+    }
+  } else {
+    lat <- lat_orig
+  }
+  
+  # Ordenación de longitudes
+  if (!all(diff(lon_orig) >= 0)) {
+    lon <- lon_orig[length(lon_orig):1]
+    if (!is.null(maxtemp)) {
+      maxtemp <- if (length(dim(maxtemp)) == 5) maxtemp[,length(lon_orig):1, , ,] else maxtemp[,length(lon_orig):1, , ]
+    }
+    if (!is.null(mintemp)) {
+      mintemp <- if (length(dim(mintemp)) == 5) mintemp[,length(lon_orig):1, , ,] else mintemp[,length(lon_orig):1, , ]
+    }
+  } else {
+    lon <- lon_orig
+  }
+  
+  # Ajuste de dimensiones
+  adjust_dims <- function(var, realizations) {
+    if (is.null(var)) return(NULL)
+    if (length(dim(var)) == 5) {
+      var <- aperm(var, c(1, 2, 5, 3, 4))
+    } else if (length(dim(var)) == 4) {
+      var <- aperm(var, c(1, 2, 4, 3))
+    }
+    if (length(dim(var)) != 5) {
+      var <- abind(var, along = 5)
+      if (length(realizations) == 1) {
+        var <- aperm(var, c(1, 2, 5, 3, 4))
+      }
+    }
+    return(var)
+  }
+  
+  maxtemp <- adjust_dims(maxtemp, realizations)
+  mintemp <- adjust_dims(mintemp, realizations)
+  
+  # Extraer datos en puntos específicos
+  n_points <- nrow(metadatos)
+  nearest_indices <- matrix(NA, nrow = n_points, ncol = 2)
+  colnames(nearest_indices) <- c("lon_idx", "lat_idx")
+  
+  grid_coords <- data.frame(grid_lon = numeric(n_points), grid_lat = numeric(n_points))
+  
+  for (i in 1:n_points) {
+    # Longitud más cercana
+    lon_diff <- abs(lon - metadatos$longitude[i])
+    nearest_indices[i, "lon_idx"] <- which.min(lon_diff)
+    grid_coords$grid_lon[i] <- lon[nearest_indices[i, "lon_idx"]]
+    
+    # Latitud más cercana
+    lat_diff <- abs(lat - metadatos$latitude[i])
+    nearest_indices[i, "lat_idx"] <- which.min(lat_diff)
+    grid_coords$grid_lat[i] <- lat[nearest_indices[i, "lat_idx"]]
+  }
+  
+  # Extraer datos en cada punto
+  dims_original <- if (!is.null(maxtemp)) dim(maxtemp) else dim(mintemp)
+  
+  maxtemp_points <- if (!is.null(maxtemp)) {
+    array(NA, dim = c(n_points, dims_original[3], dims_original[4], dims_original[5]))
+  } else NULL
+  
+  mintemp_points <- if (!is.null(mintemp)) {
+    array(NA, dim = c(n_points, dims_original[3], dims_original[4], dims_original[5]))
+  } else NULL
+  
+  for (i in 1:n_points) {
+    if (!is.null(maxtemp)) {
+      maxtemp_points[i, , , ] <- maxtemp[nearest_indices[i, "lon_idx"],
+                                         nearest_indices[i, "lat_idx"], , , ]
+    }
+    if (!is.null(mintemp)) {
+      mintemp_points[i, , , ] <- mintemp[nearest_indices[i, "lon_idx"],
+                                         nearest_indices[i, "lat_idx"], , , ]
+    }
+  }
+  
+  # Usar coordenadas reales de la estación
+  point_lons <- metadatos$longitude
+  point_lats <- metadatos$latitude
+  
+  # Crear objeto ClimIndVis (puntos)
+  climindvis_points <- make_object(
+    tmin = mintemp_points,
+    tmax = maxtemp_points,
+    dates_tmin = if (!is.null(mintemp_points)) valid_time_normal else NULL,
+    dates_tmax = if (!is.null(maxtemp_points)) valid_time_normal else NULL,
+    lon = point_lons,
+    lat = point_lats,
+    data_info = data_info
+  )
+  
+  # Cerrar NetCDF
+  nc_close(nc_file)
+  
+  return(climindvis_points)
+}
 
 
 
@@ -418,23 +584,25 @@ data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="
 climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
-# Convertir climindvis grid en un climindvis point objeto 
-
 nombres <- metadatos %>%
   dplyr::arrange(omm_id) %>%
   dplyr::pull(name)
 
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, metadatos, factor = 1, diff = FALSE)
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+                                                                    metadatos, factor = 1, diff = FALSE)
 
 
-# SPI Forecast
-autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3))
+# SPI Forecast 
+autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_forecast, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),plotstart = 2015)
+
+# Ejemplo der paquete 
+autoplot_forecast_spi(obs_p = object_st, fc_p = object_fc_st, index = "spi_forecast", index_args = list(aggt="monthly", timescale=3),plotstart = 2008)
 
 
 
-### Más ejemplos  ###
+### Ejemplo Forecast Map ###
 
 # Forecast Precipitación Argentina Enero 2025 con max lead time
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
@@ -446,7 +614,7 @@ data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="
 climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
                                                             data_info = data_info)
 
-# Ejemplos
+# Ejemplo días secos (dd)
 autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", 
                       index_args = list(aggt = "seasonal", selagg = "MAM"))
 autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climindvis_grid_prcp_hindcast, index ="dd", 
@@ -463,8 +631,61 @@ data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="
 climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
                                                               data_info = data_info)
 
-# Forecast Map WSDI 
+# Ejemplo duración de períodos cálídos (wsdi) 
 autoplot_forecast_map(fc_grid = climindvis_grid_temp_forecast, hc_grid = climindvis_grid_tmax_hindcast, index ="wsdi", 
                       index_args = list(aggt = "seasonal", selagg = "MAM"),
-                      output = "png", plotdir = "../ENANDES_CLIMA/Workshop2/") # Ajusta esto si quieres guardar el gráfico con tu directorio
+                      output = "png", plotdir = "TU_DIRECTORIO") # Ajusta esto para guardar el gráfico en tu directorio
+
+
+### Ejemplo Forecast Station ###
+
+# Datos del 01_ingestion_datos_puntuales.r
+load("data/ClimIndVis_Stations.RData")
+
+nombres <- metadatos %>%
+  dplyr::arrange(omm_id) %>%
+  dplyr::pull(name)
+
+# Objecto ClimIndVis point Forecast Precipitación
+data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
+                  pnames=nombres)
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+                                                                    metadatos, factor = 1, diff = FALSE)
+
+# Objecto ClimIndVis point Hindcast Precipitación
+data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
+                  pnames=nombres)
+climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_points(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
+                                                                    metadatos, factor = 1, diff = FALSE)
+
+# Ejemplo días secos (dd)
+autoplot_forecast_stations(
+  fc_p = climindvis_point_prcp_forecast, hc_p = climindvis_point_prcp_hindcast, obs_p = climindvis_st,
+  index = "dd",  index_args = list(aggt = "other", aggmons = c(1:3)),
+  verify = FALSE)
+
+
+# Ejemplo Temparatura 
+
+# ClimIndVis objecto point Forecast Temperatura (tmax,tmin) Argentina Enero 2025
+data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
+                  pnames=nombres)
+climindvis_point_temp_forecast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+                                                                    metadatos)
+
+# ClimIndVis objecto point Hindcast Temperatura (solamente tmax) Argentina Enero 2025
+data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
+                  pnames=nombres)
+climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc", data_info, 
+                                                                    metadatos)
+
+# Ejemplo duración de períodos cálídos (wsdi) 
+autoplot_forecast_stations(
+  fc_p = climindvis_point_temp_forecast, hc_p = climindvis_point_tmax_hindcast, obs_p = climindvis_st,
+  index = "wsdi",  index_args = list(aggt = "seasonal", selagg = "MAM"),
+  verify = FALSE)
+
+
+
+
 
