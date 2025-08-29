@@ -12,6 +12,7 @@ load("data/ClimIndVis_Grid.RData")
 # Carga del archivo ClimIndVis generado a partir de datos puntuales
 load("data/ClimIndVis_Stations.RData")
 
+
 ### 1. MAPAS DE CLIMATOLOGIA
 
 # 1a. Generación de mapa de media te temperatura máxima
@@ -32,6 +33,14 @@ ClimIndVis::autoplot_climatology_map(
   output = "png", plotdir = "data/", plotname = "mapa_climatologia_prec"
 )
 
+# 1c. Generación de mapa de días secos por estación
+index_args <- list(aggt = "seasonal", iformat = "perc")
+plot_args  <- list(p_cex = 5, plwidth = 10, NA_col = "grey50", zlim = c(0, 100))
+ClimIndVis::autoplot_climatology_map(
+  dat_grid = climindvis_grid, index = "dd", index_args = index_args,
+  selyears = c(1991:2020), plot_args = plot_args, title = "Días secos (climatología)",
+  output = "png", plotdir = "data/", plotname = "mapa_climatologia_dd"
+)
 
 ### 2. MAPAS DE ANOMALIAS
 
@@ -65,3 +74,12 @@ ClimIndVis::autoplot_anomaly_map(
 )
 
 ### 3. MAPAS DE TENDENCIAS
+
+# 3a. Generación de mapa de días secos por estación
+index_args <- list(aggt = "seasonal", iformat = "perc")
+plot_args  <- list(p_cex = 5, plwidth = 10, NA_col = "grey50", zlim = c(0, 100))
+ClimIndVis::autoplot_trend_map(
+  dat_grid = climindvis_grid, index = "dd", index_args = index_args,
+  selyears = c(2010:2019), plot_args = plot_args, title = "Días secos (tendencia)",
+  output = "png", plotdir = "data/", plotname = "mapa_tendencia_dd"
+)
