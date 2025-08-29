@@ -570,7 +570,7 @@ autoplot_anomaly_ts(climindvis_st, index = "spi",
 # Datos del forecast
 # Definir data_info
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
 nombres <- metadatos %>%
@@ -579,7 +579,7 @@ nombres <- metadatos %>%
 
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 
@@ -592,12 +592,12 @@ autoplot_forecast_spi(obs_p = climindvis_st, fc_p = climindvis_point_prcp_foreca
 
 # Forecast Precipitación Argentina Enero 2025 con max lead time
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+climindvis_grid_prcp_forecast <- process_nc_file_precip_CDS(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                             data_info = data_info)
 
 # Hindcast Precipitación Argentina Enero 1981-2010 con max lead time
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
-climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
+climindvis_grid_prcp_hindcast <- process_nc_file_precip_CDS(nc_file_path = "data/hindcasts/hindcast_ECWMF_jan1981_2010_ARG_precip.nc",
                                                             data_info = data_info)
 
 # Ejemplo días secos (dd)
@@ -609,12 +609,12 @@ autoplot_forecast_map(fc_grid = climindvis_grid_prcp_forecast, hc_grid = climind
 
 # Forecast Temperatura (tmax,tmin) Argentina Enero 2025
 data_info <- list(type="grid_fc", date_format="t2d", data_name="ECMWF fc",fmon="01")
-climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc",
+climindvis_grid_temp_forecast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc",
                                                                   data_info = data_info)
 
 # Hindcast Temperatura (solamente tmax) Argentina Enero 1981-2010
 data_info <- list(type="grid_hc", date_format="t2d", data_name="ECMWF hc",fmon="01")
-climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
+climindvis_grid_tmax_hindcast <- process_nc_file_max_min_temp_CDS(nc_file_path = "data/hindcasts/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc",
                                                               data_info = data_info)
 
 # Ejemplo duración de períodos cálídos (wsdi) 
@@ -634,13 +634,13 @@ nombres <- metadatos %>%
 # Objeto ClimIndVis point Forecast Precipitación
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+climindvis_point_prcp_forecast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 # Objeto ClimIndVis point Hindcast Precipitación
 data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
+climindvis_point_prcp_hindcast <- process_nc_file_precip_CDS_to_points(nc_file_path = "data/hindcasts/hindcast_ECWMF_jan1981_2010_ARG_precip.nc", data_info, 
                                                                     metadatos, factor = 1, diff = FALSE)
 
 # Ejemplo días secos (dd)
@@ -655,13 +655,13 @@ autoplot_forecast_stations(
 # ClimIndVis objeto point Forecast Temperatura (tmax,tmin) Argentina Enero 2025
 data_info <- list(type="p_fc", date_format="t2d", data_name="ECMWF fc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_temp_forecast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
+climindvis_point_temp_forecast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/forecasts/seasonal_forecast_ECMWF_jan2025_ARG.nc", data_info, 
                                                                     metadatos)
 
 # ClimIndVis objeto point Hindcast Temperatura (solamente tmax) Argentina Enero 2025
 data_info <- list(type="p_hc", date_format="t2d", data_name="ECMWF hc stations",fmon="01",
                   pnames=nombres)
-climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc", data_info, 
+climindvis_point_tmax_hindcast <- process_nc_file_max_min_temp_CDS_points(nc_file_path = "data/hindcasts/hindcast_ECMWF_jan1981_2010_ARG_tmax.nc", data_info, 
                                                                     metadatos)
 
 # Ejemplo duración de períodos cálídos (wsdi) 
