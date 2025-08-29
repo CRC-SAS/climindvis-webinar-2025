@@ -14,7 +14,6 @@ library(purrr)
 load("data/ClimIndVis_Stations.RData")
 
 
-
 #exploración rápida de los datos diarios
 
 st = 4
@@ -38,8 +37,8 @@ dd <- calc_index(
   index = "dd",
   iformat = "perc",       # "perc"(default) / "days" 
   NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
-  aggt = "annual",        # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
-  dd_threshold = 1        # 1 (default), definido por el usuario    
+  aggt = "monthly",        # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
+  dd_threshold = 1       # 1 (default), definido por el usuario    
 )
 
 # podemos hacer un gráfico para un indice calculado a nivel anual para ver valores del indice
@@ -73,7 +72,7 @@ ggplot(df, aes(x = años, y = value)) +
 datos_anual <- purrr::imap_dfr(
   .x = dplyr::pull(metadatos, omm_id),
   .f = function(omm_id, i) {
-    indice <- dd$index
+    indice <- dd$index              #aqui se debe colocar el indice que se calculo (ej. dd)
     indice_estacion <- indice[i,]
     return (tibble::tibble(
       omm_id = omm_id,
@@ -92,7 +91,7 @@ dd <- calc_index(
   index = "dd",
   iformat = "perc",       # "perc"(default) / "days" 
   NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
-  aggt = "monthly",         # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
+  aggt = "monthly",       # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
  # aggmons = c(1,4),
   dd_threshold = 1        # 1 (default), definido por el usuario    
 )
@@ -103,7 +102,7 @@ dd <- calc_index(
 datos_mensual <- purrr::imap_dfr(
   .x = dplyr::pull(metadatos, omm_id),
   .f = function(omm_id, i) {
-    indice_dd <- dd$index          # aqui modificar con el nombre del indice
+    indice_dd <- dd$index          # aqui modificar con el nombre del indice (ej dd)
     dd_estacion <- indice_dd[i,,]
     datos_dd_estacion <- purrr::map_dfr(
       .x = seq(from = 1, to = 12),
@@ -122,9 +121,7 @@ datos_mensual <- purrr::imap_dfr(
   }
 ) %>% dplyr::arrange(omm_id, year, month)
 
-
 write.table(datos_mensual, "dd_mensual.txt", sep="\t", row.names = TRUE)
-
 
 
 # otra opcion es definir los datos entre dias especificos con "dates":
@@ -141,8 +138,8 @@ dd_anual_dates <- calc_index(
 )
 
 
-
 ################################################################################
+
 # Días con heladas (fd) (Tmin < 0)
 
 fd <- calc_index(
@@ -152,7 +149,6 @@ fd <- calc_index(
   NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   aggt = "monthly"        # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
 )
-
 
 ################################################################################
 
@@ -184,6 +180,7 @@ th_tmax <- calc_index(
 
 
 ################################################################################
+
 # Días con Tmax sobre un umbral (th_topt) (umbral1 <= Tavg <= umbral2).
 
 th_topt <- calc_index(
@@ -198,6 +195,7 @@ th_topt <- calc_index(
 
 
 ################################################################################
+
 # Días bajo/sobre un umbral (th) (Variable >/>=/</<= umbral)
 
 th <- calc_index(
@@ -212,6 +210,7 @@ th <- calc_index(
 )
 
 ################################################################################
+
 # Días entre dos umbrales (th_range) (umbral1 >/>=/</<= variable >/>=/</<= umbral2)
 
 th_range <- calc_index(
@@ -319,7 +318,7 @@ rx <- calc_index(
 minmax_xdays <- calc_index(
   climindvis = climindvis_st,
   index = "minmax_xdays",        
-  var = "tmin",            #prec / tmin / tmax / tavg
+  var = "tmin",            # prec / tmin / tmax / tavg
   rx = 3,                  # dias a eleccion
   fun = "max",             # max (default)/ min
   NAmaxAgg = 20,           # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
@@ -416,7 +415,7 @@ wsdi <- calc_index(
   aggt = "annual"           # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
 )
 
-# wsdi$index_info$th_quantiles da los valores de los P90 para cada dia del año
+# wsdi$index_info$th_quantiles da los valores de los percentiles definidos en qthreshold para cada dia del año
 # write.table(wsdi$index_info$th_quantiles,"p90.txt",sep="\t", row.names = FALSE)
 # Ejemplo: En Buenos Aires da 26 el año 2023, fueron 2 periodos en donde el la tmax diaria fue superior a su P90 diario, y cada periodo fue como mínimo de 6 dias, 
 # un periodo fue de 6 días desde el 09/02/2023 hasta el 14/02/2023, y el otro fue de 20 días desde el 28/02/2023
@@ -437,12 +436,12 @@ tn10p <- calc_index(
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   iformat = "days",         # "perc"(default) / "days" 
   n = 1,                    # 5 (default) tamaño de ventana (en días) para ejecutar la ventana en el cálculo del cuantil de temperatura. 
-  baseperiod = c(1961,2010),# Vector de año de inicio y fin para el cálculo de cuantiles. Si no se proporciona, se utilizará todo el rango de años del conjunto de datos para el cálculo de los cuantiles
+  baseperiod = c(1961,2024),# Vector de año de inicio y fin para el cálculo de cuantiles. Si no se proporciona, se utilizará todo el rango de años del conjunto de datos para el cálculo de los cuantiles
   inbase = FALSE,           # TRUE (default) Para los cuantiles de temperatura, calcule los cuantiles dentro y fuera del período base siguiendo el método de impulso de Zhang 2005. Solo se aplica cuando se selecciona el período base
    min_base_fraction = 0.1, # 0.1 (default). Fracción mínima de los datos base que deben estar presentes para que el cuantil se calcule para un día en particular (solo se aplica a los cuantiles de temperatura)
   th_object = NULL,         # Si se calcula un índice cuantil para datos de pronóstico, se debe proporcionar un objeto climindvis_index de datos retrospectivo para las mismas dimensiones espaciales y meses de pronóstico. Los valores de umbral se tomarán del objeto hindcast (objeto$index_info$quantiles). En este caso, todos los demás argumentos (q, período base, umbral,...) se ignoran y se toman del objeto climindvis_index. En el caso de funciones de trazado automático, estos valores se entregan automáticamente y th_object debe dejarse en el valor predeterminado de NULL
   NAmaxQ = 365,             # 365 (default) Número mínimo de días necesarios para el cálculo de cuantiles
-  aggt = "annual",          # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons 
+  aggt = "annual"          # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons 
 )
 
 
@@ -493,7 +492,7 @@ tx90p <- calc_index(
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   iformat = "perc",         # "perc"(default) / "days" 
   n = 5,                    # 5 (default) tamaño de ventana (en días) para ejecutar la ventana en el cálculo del cuantil de temperatura. 
-  baseperiod = c(1981,2010),# Vector de año de inicio y fin para el cálculo de cuantiles. Si no se proporciona, se utilizará todo el rango de años del conjunto de datos para el cálculo de los cuantiles
+  baseperiod = c(1991,2020),# Vector de año de inicio y fin para el cálculo de cuantiles. Si no se proporciona, se utilizará todo el rango de años del conjunto de datos para el cálculo de los cuantiles
   inbase = FALSE,           # TRUE (default) Para los cuantiles de temperatura, calcule los cuantiles dentro y fuera del período base siguiendo el método de impulso de Zhang 2005. Solo se aplica cuando se selecciona el período base
   min_base_fraction = 0.1,  # 0.1 (default). Fracción mínima de los datos base que deben estar presentes para que el cuantil se calcule para un día en particular (solo se aplica a los cuantiles de temperatura)
   th_object = NULL,         # Si se calcula un índice cuantil para datos de pronóstico, se debe proporcionar un objeto climindvis_index de datos retrospectivo para las mismas dimensiones espaciales y meses de pronóstico. Los valores de umbral se tomarán del objeto hindcast (objeto$index_info$quantiles). En este caso, todos los demás argumentos (q, período base, umbral,...) se ignoran y se toman del objeto climindvis_index. En el caso de funciones de trazado automático, estos valores se entregan automáticamente y th_object debe dejarse en el valor predeterminado de NULL
@@ -628,7 +627,7 @@ sdii <- calc_index(
   index = "sdii",        
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   dd_threshold = 1,         # 1 (default) Umbral de precipitación para días secos en mm
-  aggt = "monthly"
+  aggt = "annual"
 )
 
 
