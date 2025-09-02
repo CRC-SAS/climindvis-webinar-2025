@@ -73,7 +73,7 @@ datos_anual <- purrr::imap_dfr(
   .x = dplyr::pull(metadatos, omm_id),
   .f = function(omm_id, i) {
     indice <- dd$index              #aqui se debe colocar el indice que se calculo (ej. dd)
-    indice_estacion <- indice[i,]
+    indice_estacion <- indice[i,,]
     return (tibble::tibble(
       omm_id = omm_id,
       year = names(indice_estacion),
