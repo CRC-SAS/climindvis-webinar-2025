@@ -46,7 +46,7 @@ library(ggplot2)
 
 st <- 2
 años <- dd$index_info$years           #Fechas
-value <- dd$index[st, ]               #valor del índice de la estación 2
+value <- dd$index[st,, ]               #valor del índice de la estación 2
 name <- dd$data_info$pnames[st]       #Nombre de la estación
 name_ind <- dd$index_info$iname       #Nombre del índice 
 
