@@ -469,7 +469,7 @@ tn90p <- calc_index(
 
 tx10p <- calc_index(
   climindvis = climindvis_st,
-  index = "tX10p",        
+  index = "tx10p",        
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   iformat = "perc",         # "perc"(default) / "days" 
   n = 5,                    # 5 (default) tamaño de ventana (en días) para ejecutar la ventana en el cálculo del cuantil de temperatura. 
