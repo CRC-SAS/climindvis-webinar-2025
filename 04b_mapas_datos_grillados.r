@@ -75,11 +75,29 @@ ClimIndVis::autoplot_anomaly_map(
 
 ### 3. MAPAS DE TENDENCIAS
 
-# 3a. Generación de mapa de días secos por estación
-index_args <- list(aggt = "seasonal", iformat = "perc")
+# 3a. Generación de mapa de días secos
+index_args <- list(aggt = "seasonal", iformat = "perc", selagg = "JJA")
 plot_args  <- list(p_cex = 5, plwidth = 10, NA_col = "grey50", zlim = c(0, 100))
 ClimIndVis::autoplot_trend_map(
   dat_grid = climindvis_grid, index = "dd", index_args = index_args,
   selyears = c(2010:2019), plot_args = plot_args, title = "Días secos (tendencia)",
   output = "png", plotdir = "data/", plotname = "mapa_tendencia_dd"
+)
+
+# 3b. Generación de mapa de máximo de temperatura máxima
+index_args <- list(aggt = "seasonal", iformat = "perc", selagg = "DJF")
+plot_args  <- list(p_cex = 5, plwidth = 10, NA_col = "grey50", zlim = c(0, 100))
+ClimIndVis::autoplot_trend_map(
+  dat_grid = climindvis_grid, index = "txx", index_args = index_args,
+  selyears = c(2010:2019), plot_args = plot_args, title = "Máximo de temperatura máxima (tendencia)",
+  output = "png", plotdir = "data/", plotname = "mapa_tendencia_txx"
+)
+
+# 3c. Generación de mapa de mínimo de temperatura mínima
+index_args <- list(aggt = "seasonal", iformat = "perc", selagg = "JJA")
+plot_args  <- list(p_cex = 5, plwidth = 10, NA_col = "grey50", zlim = c(0, 100))
+ClimIndVis::autoplot_trend_map(
+  dat_grid = climindvis_grid, index = "tnn", index_args = index_args,
+  selyears = c(2010:2019), plot_args = plot_args, title = "Mínimo de temperatura mínima (tendencia)",
+  output = "png", plotdir = "data/", plotname = "mapa_tendencia_tnn"
 )
