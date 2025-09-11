@@ -199,6 +199,5 @@ autoplot_anomaly_ts(
   dat_p = climindvis_st,
   index = "tn10p",
   ts_type = "single_ts",
-  trendplots = TRUE,
   index_args = list(aggt = "annual", iformat = "perc", baseperiod = c(1971,2000), NAmaxAgg = 20)
 )

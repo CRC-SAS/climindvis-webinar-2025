@@ -37,7 +37,7 @@ dd <- calc_index(
   index = "dd",
   iformat = "perc",       # "perc"(default) / "days" 
   NAmaxAgg = 20,          # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
-  aggt = "monthly",        # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
+  aggt = "annual",        # annual / seasonal / monthly / other. Si definimos "other" hay que agregar el argumento aggmons
   dd_threshold = 1       # 1 (default), definido por el usuario    
 )
 
@@ -46,7 +46,7 @@ library(ggplot2)
 
 st <- 2
 años <- dd$index_info$years           #Fechas
-value <- dd$index[st, ]               #valor del índice de la estación 2
+value <- dd$index[st, ]               #valor del índice de la estación 2.
 name <- dd$data_info$pnames[st]       #Nombre de la estación
 name_ind <- dd$index_info$iname       #Nombre del índice 
 
@@ -469,7 +469,7 @@ tn90p <- calc_index(
 
 tx10p <- calc_index(
   climindvis = climindvis_st,
-  index = "tX10p",        
+  index = "tx10p",        
   NAmaxAgg = 20,            # 20 (default) porcentaje de datos diarios aceptados en el periodo de agregación seleccionado (entre 0 y 100)
   iformat = "perc",         # "perc"(default) / "days" 
   n = 5,                    # 5 (default) tamaño de ventana (en días) para ejecutar la ventana en el cálculo del cuantil de temperatura. 

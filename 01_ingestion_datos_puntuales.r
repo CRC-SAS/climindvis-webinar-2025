@@ -60,14 +60,24 @@ datos <- dplyr::bind_rows(buenos_aires, posadas_aero, tartagal, bariloche)
 fechas <- seq(from = min(datos$fecha), to = max(datos$fecha), by = "day")
 
 # Una vez generada la serie de tiempo final, reconstruimos el tibble consolidado.
-# Mediante la función left_join, forzamos a que cada serie de datos tenga exactamente las fechas requeridas.
+# Mediante la función right_join, forzamos a que cada serie de datos tenga exactamente las fechas requeridas.
 fechas_df <- tibble::tibble(fecha = fechas)
-datos <- dplyr::bind_rows(
-  dplyr::left_join(fechas_df, tartagal, by = "fecha"),
-  dplyr::left_join(fechas_df, posadas_aero, by = "fecha"),
-  dplyr::left_join(fechas_df, buenos_aires, by = "fecha"),
-  dplyr::left_join(fechas_df, bariloche, by = "fecha")
-)
+datos <- purrr::map_dfr(
+  .x = unique(datos$omm_id),
+  .f = function(omm_estacion_id) {
+    datos_estacion <- datos %>%
+      # Obtengo los datos de esa estación
+      dplyr::filter(omm_id == omm_estacion_id) %>%
+      # Hago right_join con tibble de fechas
+      dplyr::right_join(fechas_df, by = "fecha") %>%
+      # Completo omm_id aunque esté vacío por fecha faltante
+      dplyr::mutate(omm_id = omm_estacion_id)
+  }
+) %>%
+  # Seleccionar omm_id, fecha, tmax, tmin, tmed y prcp
+  dplyr::select(omm_id, fecha, tmax, tmin, tmed, prcp) %>%
+  # Ordenar por omm_id y fecha
+  dplyr::arrange(omm_id, fecha)
 
 # Ahora vamos a generar una matriz de datos para cada variable (tmax, tmin, tmed y prcp). 
 # Cada matriz debe tener 2 dimensiones (N, M), donde N es la cantidad de estaciones o puntos
