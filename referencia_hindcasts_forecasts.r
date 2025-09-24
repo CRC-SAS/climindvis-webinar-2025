@@ -31,7 +31,15 @@ process_nc_file_precip_CDS_to_points <- function(nc_file_path, data_info, metada
   # Convertir valid_time en fechas normalizadas
   valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z") - lubridate::days(1)
-  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Separar los años de acuerdo a fmon
+  first_month <- as.integer(data_info$fmon)
+  grouping_fn <- function(date, first_month) {
+    years  <- lubridate::year(date)
+    months <- lubridate::month(date)
+    return (as.character(ifelse(months < first_month, years-1, years)))
+  }
+  valid_time_normal <- split(valid_time_normal, grouping_fn(valid_time_normal, first_month))
   
   # Ordenación de la latitud
   if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
@@ -165,7 +173,15 @@ process_nc_file_precip_CDS <- function(nc_file_path, data_info, factor = 1, diff
   # Convertir valid_time en fechas normalizadas
   valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z") - lubridate::days(1)
-  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Separar los años de acuerdo a fmon
+  first_month <- as.integer(data_info$fmon)
+  grouping_fn <- function(date, first_month) {
+    years  <- lubridate::year(date)
+    months <- lubridate::month(date)
+    return (as.character(ifelse(months < first_month, years-1, years)))
+  }
+  valid_time_normal <- split(valid_time_normal, grouping_fn(valid_time_normal, first_month))
   
   # Ordenación de la latitud
   if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
@@ -263,7 +279,15 @@ process_nc_file_max_min_temp_CDS <- function(nc_file_path, data_info) {
   # Convertir valid_time en fechas normalizadas
   valid_time_normal <- as.POSIXct(valid_time, origin = "1970-01-01", tz = "UTC")
   valid_time_normal <- as.Date(valid_time_normal, format = "%Y-%m-%d %Z") - lubridate::days(1)
-  valid_time_normal <- split(valid_time_normal, format(valid_time_normal, "%Y"))
+  
+  # Separar los años de acuerdo a fmon
+  first_month <- as.integer(data_info$fmon)
+  grouping_fn <- function(date, first_month) {
+    years  <- lubridate::year(date)
+    months <- lubridate::month(date)
+    return (as.character(ifelse(months < first_month, years-1, years)))
+  }
+  valid_time_normal <- split(valid_time_normal, grouping_fn(valid_time_normal, first_month))
   
   # Ordenación de la latitud
   if (!all(diff(nc_file$dim$latitude$vals) >= 0)) {
